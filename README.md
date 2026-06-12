@@ -2,6 +2,10 @@
 
 *비싼 모델은 시니어 판단에만 쓰고 손이 많이 가는 조사는 Codex에 맡기는 Claude Code 스킬.*
 
+<p align="center">
+  <img src="./docs/senior-mode-webtoon.png" alt="senior-mode 웹툰 — fable-5(김부장)는 설계·계획·검토, Codex 5.5(막내)는 자료조사·코드검색·구현" width="760">
+</p>
+
 [English README](./README.en.md)
 
 ---

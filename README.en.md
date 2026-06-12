@@ -2,6 +2,10 @@
 
 *A Claude Code skill that keeps your most expensive model on senior judgment and hands the legwork to Codex.*
 
+<p align="center">
+  <img src="./docs/senior-mode-webtoon.png" alt="senior-mode webtoon — fable-5 (the manager) does design/planning/review, Codex 5.5 (the junior) does research/code-search/implementation" width="760">
+</p>
+
 [한국어 README](./README.md)
 
 ---
