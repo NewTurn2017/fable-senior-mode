@@ -1,0 +1,165 @@
+---
+name: senior-mode
+description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise Codex prompts, report triage, and document writing while Codex is invoked through this skill's companion script for repository investigation, review, and delegated implementation passes. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, 정교한 프롬프트 작성, or when a complex task needs delegated Codex research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
+---
+
+# Senior Mode
+
+Use `senior-mode` to preserve fable-5 for scarce senior-engineer work. Claude is the senior lead: it decides what must be learned, writes precise prompts, invokes Codex through the bundled companion script, reads the returned reports, judges the situation, and writes documents or next-step prompts. Codex does repository investigation, review, debugging passes, and explicitly delegated implementation detail discovery.
+
+This skill follows the official `openai/codex-plugin-cc` shape: Claude does not hand-roll Codex CLI calls. It uses the local helper script as the runtime boundary.
+
+Use this skill only when the work is complex enough that senior judgment is more valuable than direct execution:
+
+- Multi-file, architectural, product, migration, or debugging questions where premature coding would waste effort.
+- Requests that need careful situation judgment, tradeoff analysis, or a high-quality prompt for Codex.
+- User requests such as "senior-mode", "시니어 모드", "fable-5로 판단", "코덱스에게 조사 시켜", "정교한 프롬프트 작성".
+
+Do not use this skill for:
+
+- Small tasks, single-file edits, obvious fixes, or routine implementation.
+- Any request where Claude/fable-5 would write application code bodies.
+- Broad codebase reading by fable-5 when Codex can collect the evidence.
+- Direct `codex` CLI orchestration that bypasses the companion script.
+
+## Codex Runtime Contract
+
+The helper lives beside this file:
+
+```bash
+node "<skill-root>/scripts/codex-companion.mjs" <command> ...
+```
+
+Resolve `<skill-root>` to the directory containing this `SKILL.md`. In this repository, it is the current directory.
+
+Use the helper for every Codex interaction:
+
+```bash
+node scripts/codex-companion.mjs setup
+node scripts/codex-companion.mjs task --wait --read-only --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs task --background --read-only --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs task --write --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs review --background --base main --cwd <repo>
+node scripts/codex-companion.mjs status <job-id> --cwd <repo>
+node scripts/codex-companion.mjs wait <job-id> --cwd <repo>
+node scripts/codex-companion.mjs watch <job-id> --cwd <repo>
+node scripts/codex-companion.mjs result <job-id> --cwd <repo>
+node scripts/codex-companion.mjs cancel <job-id> --cwd <repo>
+```
+
+Runtime rules:
+
+- Run `setup` before first use when Codex readiness is unknown.
+- Use `task --read-only` for investigation, diagnosis, architecture mapping, and prompt validation.
+- Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
+- Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
+- Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
+- Use `--model` only when the user asks for a specific model. Map `spark` through the helper rather than writing the concrete model name yourself.
+- Use `--effort` only when the user asks for a specific reasoning effort.
+- Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
+- Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.
+- Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
+- Use `watch <job-id>` when integrating with a monitor or hook-style flow. It emits one JSON status line per change and a final `done` or `timeout` line.
+
+## LazyCodex Compatibility
+
+LazyCodex is an optional Codex-side harness, not the default senior-mode runtime. It can be useful when the Codex task itself needs OmO-style project memory, planning, subagents, hooks, and verified completion loops.
+
+Use LazyCodex only when one of these is true:
+
+- The user explicitly asks for LazyCodex, OmO, ultrawork, `ulw`, `$ulw-loop`, `$ulw-plan`, or `$start-work`.
+- The delegated work is broad enough that Codex should own an internal plan/execute/verify loop, not just return a bounded evidence report.
+- A previous plain Codex task repeatedly loses completion handoff and the work would benefit from LazyCodex's Stop-hook reinjection and `ORCHESTRATION COMPLETE` style completion marker.
+
+LazyCodex rules:
+
+- Do not install LazyCodex automatically. It mutates the user's Codex setup under `~/.codex`; ask the user to approve installation first.
+- Recommended install command, when approved: `npx lazycodex-ai install --no-tui --codex-autonomous`.
+- Check existing LazyCodex health with `npx lazycodex-ai doctor`.
+- Prefer plain `task --wait --read-only` for focused investigation. Do not wrap every small Codex prompt in LazyCodex.
+- To use LazyCodex from this helper, put the LazyCodex trigger in the prompt file, such as `ultrawork`, `ulw`, `$ulw-loop`, `$ulw-plan`, or `$start-work`, then run the normal `codex-companion.mjs task` command. Continue tracking completion through this helper's `wait`, `watch`, `status`, and `result`; do not rely only on Codex-side hooks.
+
+## Role Boundaries
+
+fable-5 / Claude must do:
+
+- Decide the investigation shape.
+- Write exact Codex delegation prompts.
+- Ask for only the amount of summary needed for the decision.
+- Judge reports, tradeoffs, risks, and direction.
+- Write documents, plans, decision records, review notes, or follow-up prompts.
+- Verify significant delegated implementation effects before presenting completion.
+
+fable-5 / Claude must not do:
+
+- Write code bodies, JSX/HTML/CSS implementations, business logic, migrations, or tests.
+- Perform broad repo investigation or direct code analysis as the default path.
+- Ask Codex for more report detail than the decision requires.
+- Use this mode to avoid ordinary execution on small work.
+- Continue a failed Codex run by silently implementing the answer itself.
+
+Codex should do:
+
+- Inspect files, symbols, logs, tests, docs, and command output.
+- Return evidence and summaries at the depth requested by the delegation prompt.
+- Implement only when an explicit `task --write` prompt assigns that work.
+- Report touched files, commands run, failures, and remaining risks when it makes changes.
+
+## Workflow
+
+1. **Check whether senior-mode is warranted.** If the task is small or implementation-obvious, say this mode is unnecessary and proceed with the cheaper normal path.
+2. **Define the decision needed.** State the exact judgment fable-5 must make, the consequence of getting it wrong, and the stop condition.
+3. **Write a Codex prompt.** Include goal, scope, evidence, depth, non-goals, stop condition, and report shape.
+4. **Invoke Codex through the helper.** Use `task --wait --read-only` for bounded investigation or `task --write` only for explicit delegated implementation. Use `--background` when appropriate, capture the job id, then use `wait <job-id>` or `watch <job-id>` rather than launching again.
+5. **Consume Codex output first.** Retrieve with `result <job-id>` when the original call did not return the report. Do not read source directly unless the report is insufficient for a correct judgment. If insufficient, ask a tighter Codex follow-up before reading code yourself.
+6. **Make the senior judgment.** Keep analysis short: decision, rationale, rejected alternatives, risk, and next action.
+7. **Write the artifact.** Produce the requested document, plan, review direction, or implementation handoff. Do not write code bodies in senior-mode.
+8. **Verify delegated changes.** When Codex made changes, run the focused test, command, or scenario that covers the behavior before presenting completion.
+
+## Delegation Prompt Contract
+
+Every prompt to Codex must specify:
+
+- **Goal:** the exact question Codex must answer.
+- **Scope:** files, directories, systems, docs, or commands to inspect.
+- **Evidence:** what must be cited, such as paths, symbols, test output, logs, or config keys.
+- **Depth:** how much summary is needed for this decision. Do not request a fixed template by default.
+- **Non-goals:** what Codex must not inspect or decide.
+- **Stop condition:** when Codex should stop gathering information.
+- **Report shape:** only the fields needed for this prompt.
+
+Use Korean for user-facing prompts and documents when the surrounding project or user request is Korean-first.
+
+## Report Handling
+
+Treat Codex reports as the primary source. A good report is enough when it includes the requested evidence and directly answers the decision question. If a report is vague, missing evidence, or overreaches into judgment it was not asked to make, write a narrower follow-up prompt.
+
+Preserve Codex's output boundaries:
+
+- Keep findings ordered by severity when Codex returns a review.
+- Preserve paths, line numbers, test output, and uncertainty labels exactly.
+- If Codex made edits, state that explicitly and list touched files when provided.
+- If Codex failed, report the failure and the actionable stderr. Do not invent a substitute implementation.
+- After presenting review findings, stop before fixing anything unless the user separately approves a fix pass.
+- If a job appears to be running but `status` reports `stale`, the tracked process is gone. Treat it as a finished-or-lost handoff: read `result <job-id>` before deciding whether a follow-up Codex run is warranted.
+
+Only inspect source directly when all are true:
+
+- The current judgment would be unsafe without one small verification.
+- The needed fact is narrower than launching another Codex follow-up.
+- You can name the exact file, symbol, or output to inspect.
+
+## Output Style
+
+Default final output: `Judgment`, `Why`, `Next Prompt / Artifact`, and `Limits`. Keep it short and evidence-backed. For implementation handoff prompts, write requirements, interfaces, constraints, validation gates, and acceptance criteria. Do not include function bodies or complete code blocks.
+
+## Anti-Patterns
+
+Stop and correct course if any of these appear:
+
+- "I can just read the code myself quickly" when the task needs broad investigation.
+- "I will write the implementation to be precise." Code bodies are outside senior-mode.
+- "Give me everything you find." Ask for only what the decision needs.
+- "Use senior-mode for this tiny fix." Use the normal cheap path.
+- "I will call `codex` directly." Use `scripts/codex-companion.mjs`.
+- "Copy this full code into the worker prompt." Give constraints and gates, not completed implementation.

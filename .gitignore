@@ -1,0 +1,17 @@
+# Codex job state (runtime artifacts written by codex-companion.mjs)
+.senior-mode/
+**/.senior-mode/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# humanize-korean workspace (transient)
+_workspace/
