@@ -7,12 +7,13 @@
 
 senior-mode SKILL.md의 "LazyCodex Compatibility" 섹션은 트리거(`ulw`, `$ulw-plan`, `$ulw-loop`, `$start-work`)를 프롬프트 파일에 넣으라는 수준에서 끝난다. 어떤 트리거를 언제 쓸지, 브리프에 뭘 담아야 할지 정의가 없어 fable-5의 시니어 판단이 트리거 선택에 반영되지 않는다.
 
-근거가 된 Codex 쪽 실제 구조 (OmO 4.13.0, `~/.codex/plugins/cache/sisyphuslabs/omo/4.13.0/` 설치 확인):
+근거가 된 Codex 쪽 실제 구조 (OmO 4.15.1, `~/.codex/plugins/cache/sisyphuslabs/omo/4.15.1/` 설치 확인. 최초 설계는 4.13.0 캐시 기준이었으나 4.15.1 재검증 완료 — 아래 트리거 세트 모두 유효):
 
 - `ulw`/`ultrawork` — 한 방 오케스트레이션 지시문 (목표 + Manual-QA 채널 + 검증 게이트)
 - `$ulw-plan` — Prometheus 플래닝 컨설턴트. `.omo/plans/<slug>.md`에 decision-complete 플랜만 작성, 구현 금지
 - `$start-work` — 승인된 플랜 실행
 - `$ulw-loop` — 목표·성공기준·증거 게이트 기반 장기 멀티골 루프
+- `$ulw-research` — (4.15.1 추가) 명시 요청 시에만 발동하는 최대 포화 리서치. 코드베이스+웹+공식문서+OSS 병렬 스웜, 인용 포함 종합 보고
 
 ## 결정 사항 (사용자 확인 완료)
 

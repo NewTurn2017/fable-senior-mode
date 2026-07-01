@@ -67,7 +67,7 @@ LazyCodex (OmO) is an optional Codex-side harness, not the default senior-mode r
 
 Use LazyCodex only when one of these is true:
 
-- The user explicitly asks for LazyCodex, OmO, ultrawork, `ulw`, `$ulw-loop`, `$ulw-plan`, or `$start-work`.
+- The user explicitly asks for LazyCodex, OmO, ultrawork, `ulw`, `$ulw-loop`, `$ulw-plan`, `$ulw-research`, or `$start-work`.
 - The delegated work is broad enough that Codex should own an internal plan/execute/verify loop, not just return a bounded evidence report.
 - A previous plain Codex task repeatedly loses completion handoff and the work would benefit from LazyCodex's Stop-hook reinjection and `ORCHESTRATION COMPLETE` style completion marker.
 
@@ -89,6 +89,7 @@ Once LazyCodex is chosen, fable-5 must select exactly ONE trigger before writing
 | Large or ambiguous work that needs a detailed plan first | `$ulw-plan` | stage 1: `task --read-only`; plan artifacts only, state that implementation is forbidden |
 | Executing a plan fable-5 reviewed and the user approved | `$start-work` | stage 2: `task --write`; name the exact `.omo/plans/<slug>.md` path |
 | Long-running multi-goal work needing evidence gates | `$ulw-loop` | `task --write --background`; track with `watch`/`status` |
+| Exhaustive multi-source research (codebase + web + docs + OSS) too broad for a bounded evidence report | `$ulw-research` | `task --read-only --background`; track with `watch`/`status` |
 
 When unsure, start with `$ulw-plan`: a plan is reversible, a wrong implementation is not.
 

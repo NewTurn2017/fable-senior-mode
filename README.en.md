@@ -116,6 +116,7 @@ Once LazyCodex is in play, Claude routes the delegation through exactly one trig
 | Large or ambiguous work that needs a detailed plan first | `$ulw-plan` (read-only, plan only) |
 | Executing a plan Claude reviewed and you approved | `$start-work` (write task on the plan path) |
 | Long-running multi-goal work with evidence gates | `$ulw-loop` (background write task) |
+| Exhaustive multi-source research (codebase + web + docs) | `$ulw-research` (background read-only task) |
 
 Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 
