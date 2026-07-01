@@ -61,9 +61,9 @@ Runtime rules:
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
 - Use `watch <job-id>` when integrating with a monitor or hook-style flow. It emits one JSON status line per change and a final `done` or `timeout` line.
 
-## LazyCodex Compatibility
+## LazyCodex Delegation
 
-LazyCodex is an optional Codex-side harness, not the default senior-mode runtime. It can be useful when the Codex task itself needs OmO-style project memory, planning, subagents, hooks, and verified completion loops.
+LazyCodex (OmO) is an optional Codex-side harness, not the default senior-mode runtime. It adds project memory, planning skills, subagents, hooks, and verified completion loops on the Codex side.
 
 Use LazyCodex only when one of these is true:
 
@@ -71,13 +71,44 @@ Use LazyCodex only when one of these is true:
 - The delegated work is broad enough that Codex should own an internal plan/execute/verify loop, not just return a bounded evidence report.
 - A previous plain Codex task repeatedly loses completion handoff and the work would benefit from LazyCodex's Stop-hook reinjection and `ORCHESTRATION COMPLETE` style completion marker.
 
-LazyCodex rules:
+Setup rules:
 
 - Do not install LazyCodex automatically. It mutates the user's Codex setup under `~/.codex`; ask the user to approve installation first.
 - Recommended install command, when approved: `npx lazycodex-ai install --no-tui --codex-autonomous`.
 - Check existing LazyCodex health with `npx lazycodex-ai doctor`.
 - Prefer plain `task --wait --read-only` for focused investigation. Do not wrap every small Codex prompt in LazyCodex.
-- To use LazyCodex from this helper, put the LazyCodex trigger in the prompt file, such as `ultrawork`, `ulw`, `$ulw-loop`, `$ulw-plan`, or `$start-work`, then run the normal `codex-companion.mjs task` command. Continue tracking completion through this helper's `wait`, `watch`, `status`, and `result`; do not rely only on Codex-side hooks.
+- Continue tracking completion through this helper's `wait`, `watch`, `status`, and `result`; do not rely only on Codex-side hooks.
+
+### Trigger Routing
+
+Once LazyCodex is chosen, fable-5 must select exactly ONE trigger before writing the brief and record a one-line reason for the choice. This routing decision is senior work; do not skip it.
+
+| Situation | Trigger | Invocation |
+| --- | --- | --- |
+| Bounded multi-file implementation with little judgment left | `ulw` | single `task --write`; brief carries success criteria + QA scenarios |
+| Large or ambiguous work that needs a detailed plan first | `$ulw-plan` | stage 1: `task --read-only`; plan artifacts only, state that implementation is forbidden |
+| Executing a plan fable-5 reviewed and the user approved | `$start-work` | stage 2: `task --write`; name the exact `.omo/plans/<slug>.md` path |
+| Long-running multi-goal work needing evidence gates | `$ulw-loop` | `task --write --background`; track with `watch`/`status` |
+
+When unsure, start with `$ulw-plan`: a plan is reversible, a wrong implementation is not.
+
+### Design Brief Contract
+
+A LazyCodex brief extends the Delegation Prompt Contract with:
+
+- **Trigger line:** the chosen trigger alone on the first line of the prompt file, so word-bounded matching always fires.
+- **Goal + success criteria:** verifiable outcomes that OmO's Manual-QA channels can capture.
+- **Must-NOT:** files, directories, and scope Codex must not touch.
+- **Completion marker:** the exact final line the report must end with, so `wait`/`watch` completion is unambiguous.
+- **No detailed plan:** fable-5 does not write task breakdowns or per-file change specs — that is the OmO planner's job, grounded in its own repository exploration. The brief carries goals, constraints, and gates only.
+
+### Two-Stage Flow (`$ulw-plan` → `$start-work`)
+
+1. fable-5 writes the design brief and runs a read-only `$ulw-plan` task.
+2. On completion, fable-5 reads `.omo/plans/<slug>.md` and reviews it as a senior: risks, omissions, over-engineering, Must-NOT violations.
+3. Present a short review summary (approve or request changes) to the user and wait for user approval before any execution.
+4. On approval, delegate execution with a `$start-work` write task pointing at the plan path. Verify results under Workflow step 8.
+5. On requested changes, re-run `$ulw-plan` with a narrowed follow-up brief. fable-5 does not edit the plan file itself.
 
 ## Role Boundaries
 

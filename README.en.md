@@ -108,7 +108,16 @@ npx lazycodex-ai install --no-tui --codex-autonomous   # only when you want it
 npx lazycodex-ai doctor                                 # health check
 ```
 
-To use it from this helper, put a LazyCodex trigger (`ultrawork`, `ulw`, `$ulw-loop`, `$ulw-plan`, `$start-work`) in your prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
+Once LazyCodex is in play, Claude routes the delegation through exactly one trigger — the routing decision itself is senior work:
+
+| Situation | Trigger |
+| --- | --- |
+| Bounded multi-file implementation, little judgment left | `ulw` (single write task) |
+| Large or ambiguous work that needs a detailed plan first | `$ulw-plan` (read-only, plan only) |
+| Executing a plan Claude reviewed and you approved | `$start-work` (write task on the plan path) |
+| Long-running multi-goal work with evidence gates | `$ulw-loop` (background write task) |
+
+Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 
 ## Uninstall
 

@@ -108,7 +108,16 @@ npx lazycodex-ai install --no-tui --codex-autonomous   # 원할 때만
 npx lazycodex-ai doctor                                 # 상태 점검
 ```
 
-이 헬퍼에서 쓰려면 프롬프트 파일에 LazyCodex 트리거(`ultrawork`, `ulw`, `$ulw-loop`, `$ulw-plan`, `$start-work`)를 넣고 평소대로 `task`를 돌리면 됩니다. 완료 추적은 계속 `wait` / `watch` / `status` / `result`로 하세요.
+LazyCodex를 쓰기로 하면 Claude가 트리거 하나를 골라 위임을 라우팅합니다. 이 라우팅 판단 자체가 시니어의 일입니다.
+
+| 상황 | 트리거 |
+| --- | --- |
+| 범위가 확정된 멀티파일 구현, 판단 여지 적음 | `ulw` (write task 한 방) |
+| 크거나 모호한 작업 — 상세 플랜부터 필요 | `$ulw-plan` (read-only, 플랜만) |
+| Claude가 검토하고 사용자가 승인한 플랜 실행 | `$start-work` (플랜 경로 지정 write task) |
+| 장기 멀티골 작업, 증거 게이트 필요 | `$ulw-loop` (백그라운드 write task) |
+
+Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준, Must-NOT 범위, 완료 마커)까지만 씁니다. 상세 태스크 분해는 저장소를 직접 탐색하는 OmO 플래너의 몫입니다. 큰 작업은 2단계로 갑니다: `$ulw-plan`이 `.omo/plans/<slug>.md`를 만들고, Claude가 시니어 관점으로 검토하고, 사용자가 승인하면 `$start-work`로 실행. 프롬프트 파일 첫 줄에 트리거를 단독으로 넣고 평소대로 `task`를 돌리면 됩니다. 완료 추적은 계속 `wait` / `watch` / `status` / `result`로 하세요.
 
 ## 제거
 
