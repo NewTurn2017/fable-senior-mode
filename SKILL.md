@@ -1,11 +1,11 @@
 ---
 name: senior-mode
-description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise Codex prompts, report triage, and document writing while Codex is invoked through this skill's companion script for repository investigation, review, and delegated implementation passes. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, 정교한 프롬프트 작성, or when a complex task needs delegated Codex research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
+description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, or Opus 4.8 through Claude Code's native Agent tool when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, opus로 위임, opus로 구현, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
 ---
 
 # Senior Mode
 
-Use `senior-mode` to preserve fable-5 for scarce senior-engineer work. Claude is the senior lead: it decides what must be learned, writes precise prompts, invokes Codex through the bundled companion script, reads the returned reports, judges the situation, and writes documents or next-step prompts. Codex does repository investigation, review, debugging passes, and explicitly delegated implementation detail discovery.
+Use `senior-mode` to preserve fable-5 for scarce senior-engineer work. Claude is the senior lead: it decides what must be learned, writes precise prompts, invokes the delegate, reads the returned reports, judges the situation, and writes documents or next-step prompts. The delegate does repository investigation, review, debugging passes, and explicitly delegated implementation detail discovery. Codex through the bundled companion script is the default delegate; Opus 4.8 through the Agent tool is an opt-in alternate (see Delegate Selection).
 
 This skill follows the official `openai/codex-plugin-cc` shape: Claude does not hand-roll Codex CLI calls. It uses the local helper script as the runtime boundary.
 
@@ -21,6 +21,26 @@ Do not use this skill for:
 - Any request where Claude/fable-5 would write application code bodies.
 - Broad codebase reading by fable-5 when Codex can collect the evidence.
 - Direct `codex` CLI orchestration that bypasses the companion script.
+
+## Delegate Selection
+
+Codex through the companion script is the default delegate. Route to Opus 4.8 only when the user explicitly asks for it in the current request — for example "opus로 구현해", "opus에게 위임", "opus로 조사", "Opus 4.8로". Never switch delegates silently; state in one line which delegate is running. Asking for `spark` is a Codex model choice (`--model spark` through the helper), not a delegate switch.
+
+Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
+
+| Codex invocation | Opus 4.8 equivalent |
+| --- | --- |
+| `task --wait --read-only` | `Agent` with `subagent_type: "Explore"`, `model: "opus"`, `run_in_background: false` |
+| `task --background --read-only` | Same, default background run; the completion notification replaces `wait`/`watch` |
+| `task --write` | `Agent` with `subagent_type: "general-purpose"`, `model: "opus"`; add `isolation: "worktree"` for risky multi-file changes |
+| `review` | `Agent` with `subagent_type: "general-purpose"`, `model: "opus"`, prompt stating review-only, no edits |
+
+Opus runtime rules:
+
+- `Explore` is read-only by tool restriction. If investigation must run commands, use `general-purpose` and state "investigation only — do not modify any file" in the prompt.
+- Job tracking is native: background agents notify on completion, and `SendMessage` continues the same agent with its context intact instead of starting a new one.
+- Every other rule in this skill applies unchanged to an Opus delegate: Role Boundaries, Report Handling, the review no-auto-fix rule, and Workflow steps 5–8.
+- LazyCodex triggers (`ulw`, `$ulw-plan`, `$start-work`, `$ulw-loop`, `$ulw-research`) are Codex-only. If the user wants that flow on Opus, run a two-stage plan → user approval → implement flow with two Opus agents instead.
 
 ## Codex Runtime Contract
 
@@ -141,8 +161,8 @@ Codex should do:
 
 1. **Check whether senior-mode is warranted.** If the task is small or implementation-obvious, say this mode is unnecessary and proceed with the cheaper normal path.
 2. **Define the decision needed.** State the exact judgment fable-5 must make, the consequence of getting it wrong, and the stop condition.
-3. **Write a Codex prompt.** Include goal, scope, evidence, depth, non-goals, stop condition, and report shape.
-4. **Invoke Codex through the helper.** Use `task --wait --read-only` for bounded investigation or `task --write` only for explicit delegated implementation. Use `--background` when appropriate, capture the job id, then use `wait <job-id>` or `watch <job-id>` rather than launching again.
+3. **Write the delegation prompt.** Include goal, scope, evidence, depth, non-goals, stop condition, and report shape.
+4. **Invoke the delegate.** Default is Codex through the helper: `task --wait --read-only` for bounded investigation, `task --write` only for explicit delegated implementation; use `--background` when appropriate, capture the job id, then use `wait <job-id>` or `watch <job-id>` rather than launching again. If the user routed to Opus, use the Agent tool mapping from Delegate Selection instead.
 5. **Consume Codex output first.** Retrieve with `result <job-id>` when the original call did not return the report. Do not read source directly unless the report is insufficient for a correct judgment. If insufficient, ask a tighter Codex follow-up before reading code yourself.
 6. **Make the senior judgment.** Keep analysis short: decision, rationale, rejected alternatives, risk, and next action.
 7. **Write the artifact.** Produce the requested document, plan, review direction, or implementation handoff. Do not write code bodies in senior-mode.

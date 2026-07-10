@@ -120,6 +120,10 @@ Once LazyCodex is in play, Claude routes the delegation through exactly one trig
 
 Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 
+## Opus 4.8 delegation (optional)
+
+Codex is the default delegate, but if you explicitly ask — "implement this with opus", "have opus investigate" — the same delegation contract routes to Opus 4.8 instead. This path uses Claude Code's built-in Agent tool (`model: "opus"`) rather than the companion script, so it needs no extra install or setup. Investigation maps to the read-only Explore agent, implementation to a general-purpose agent (worktree isolation for risky multi-file changes), and the role boundaries and report-handling rules apply unchanged. Claude never switches delegates unless you ask.
+
 ## Uninstall
 
 ```bash
