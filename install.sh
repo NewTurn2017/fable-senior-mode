@@ -27,9 +27,22 @@ NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 
 mkdir -p "$SKILLS_DIR"
 
+# --- slash commands (/senior-mode:team, /senior-mode:codex) -------------------
+link_commands() {
+  local commands_root="${CLAUDE_COMMANDS_DIR:-$HOME/.claude/commands}"
+  mkdir -p "$commands_root"
+  if [ -e "$commands_root/senior-mode" ] && [ ! -L "$commands_root/senior-mode" ]; then
+    warn "$commands_root/senior-mode exists and is not a symlink. Skipping command link; move it aside and re-run to get /senior-mode:team and /senior-mode:codex."
+    return 0
+  fi
+  ln -sfn "$TARGET/commands" "$commands_root/senior-mode"
+  info "Linked slash commands: /senior-mode:team, /senior-mode:codex"
+}
+
 # --- install or update -------------------------------------------------------
 if [ -L "$TARGET" ]; then
-  warn "$TARGET is a symlink (looks like a local dev checkout). Leaving it untouched."
+  warn "$TARGET is a symlink (looks like a local dev checkout). Leaving the skill untouched."
+  link_commands
   exit 0
 elif [ -d "$TARGET/.git" ]; then
   info "Updating existing install at $TARGET"
@@ -42,6 +55,7 @@ else
 fi
 
 chmod +x "$TARGET/scripts/codex-companion.mjs" 2>/dev/null || true
+link_commands
 
 # --- codex readiness check ---------------------------------------------------
 info "Checking Codex readiness"
@@ -54,3 +68,4 @@ fi
 info "Installed at $TARGET"
 echo
 echo "Next: open Claude Code and invoke the skill with 'senior-mode' or '시니어 모드'."
+echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."

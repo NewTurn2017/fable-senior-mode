@@ -120,27 +120,46 @@ LazyCodex를 쓰기로 하면 Claude가 트리거 하나를 골라 위임을 라
 
 Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준, Must-NOT 범위, 완료 마커)까지만 씁니다. 상세 태스크 분해는 저장소를 직접 탐색하는 OmO 플래너의 몫입니다. 큰 작업은 2단계로 갑니다: `$ulw-plan`이 `.omo/plans/<slug>.md`를 만들고, Claude가 시니어 관점으로 검토하고, 사용자가 승인하면 `$start-work`로 실행. 프롬프트 파일 첫 줄에 트리거를 단독으로 넣고 평소대로 `task`를 돌리면 됩니다. 완료 추적은 계속 `wait` / `watch` / `status` / `result`로 하세요.
 
-## Opus 4.8 위임 (선택)
+## 위임 경로 3가지
 
-기본 위임처는 Codex지만, "opus로 구현해줘", "opus에게 조사 시켜"처럼 명시적으로 요청하면 같은 위임 계약 그대로 Opus 4.8에게 맡깁니다. 이때는 컴패니언 스크립트 대신 Claude Code 내장 Agent 툴(`model: "opus"`)을 쓰므로 별도 설치나 설정이 필요 없습니다. 조사는 읽기 전용 Explore 에이전트, 구현은 general-purpose 에이전트(위험한 멀티파일 변경은 워크트리 격리)로 매핑되고, 역할 경계·보고서 처리 규칙은 Codex 위임과 동일하게 적용됩니다. 명시적으로 요청하지 않으면 Claude가 임의로 위임처를 바꾸지 않습니다.
+기본 위임처는 Codex지만, 명시적으로 요청하면 Anthropic 모델로도 위임합니다. 어느 경로든 시니어 계약(역할 경계·위임 프롬프트·보고서 처리)은 동일하고, Claude가 임의로 위임처를 바꾸지 않습니다.
+
+| 진입점 | 위임처 | 런타임 |
+| --- | --- | --- |
+| `/senior-mode` (기본) | Codex | 컴패니언 스크립트 |
+| `/senior-mode:codex` | Codex 고정 | 컴패니언 스크립트 (세션 내내 고정) |
+| "opus로 구현해줘" | Opus 4.8 단일 에이전트 | Claude Code 내장 Agent 툴 (`model: "opus"`) |
+| `/senior-mode:team` | Anthropic 에이전트 팀 | 세션 메인 모델(fable-5 또는 Opus 4.8)이 팀 리드 |
+
+**Opus 단일 에이전트** — 조사는 읽기 전용 Explore 에이전트, 구현은 general-purpose 에이전트(위험한 멀티파일 변경은 워크트리 격리)로 매핑됩니다. 별도 설치나 설정이 필요 없습니다.
+
+**에이전트 팀 모드** — [Claude Code 공식 agent teams](https://code.claude.com/docs/en/agent-teams) 기반으로, `/model`에서 고른 메인 모델이 팀 리드(시니어)가 되어 Claude 팀메이트들에게 조사·리뷰·구현을 병렬 위임합니다. 팀메이트 기본 모델은 Opus, 리드는 코드를 쓰지 않고 스폰 프롬프트·플랜 승인·종합 판단만 담당합니다. 실험 기능이라 `~/.claude/settings.json`에 `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}`를 넣고 세션을 재시작해야 하며, 꺼져 있으면 백그라운드 서브에이전트로 대체 실행을 제안합니다. 세부 계약은 `references/team-runtime.md`에 있습니다.
 
 ## 제거
 
 ```bash
 rm -rf ~/.claude/skills/senior-mode
+rm ~/.claude/commands/senior-mode
 ```
 
 ## 저장소 구성
 
 ```
 senior-mode/
-├─ SKILL.md                    # Claude Code가 읽는 스킬 정의
+├─ SKILL.md                    # Claude Code가 읽는 스킬 정의 (위임 경로 라우팅 포함)
+├─ references/
+│  └─ team-runtime.md          # /senior-mode:team 에이전트 팀 런타임 계약
+├─ commands/
+│  ├─ team.md                  # /senior-mode:team 슬래시 커맨드
+│  └─ codex.md                 # /senior-mode:codex 슬래시 커맨드
 ├─ scripts/
 │  └─ codex-companion.mjs      # 의존성 없는 Codex 런타임 경계
 ├─ install.sh                  # curl로 바로 실행하는 설치 스크립트
 ├─ README.md                   # 이 파일 (한국어)
 └─ README.en.md                # 영문 README
 ```
+
+설치 스크립트가 `commands/`를 `~/.claude/commands/senior-mode`로 심링크해 두 슬래시 커맨드를 등록합니다.
 
 ## 라이선스
 

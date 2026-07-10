@@ -1,6 +1,6 @@
 ---
 name: senior-mode
-description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, or Opus 4.8 through Claude Code's native Agent tool when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, opus로 위임, opus로 구현, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
+description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, Opus 4.8 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, opus로 위임, opus로 구현, 팀으로 오케스트레이션, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
 ---
 
 # Senior Mode
@@ -24,7 +24,15 @@ Do not use this skill for:
 
 ## Delegate Selection
 
-Codex through the companion script is the default delegate. Route to Opus 4.8 only when the user explicitly asks for it in the current request — for example "opus로 구현해", "opus에게 위임", "opus로 조사", "Opus 4.8로". Never switch delegates silently; state in one line which delegate is running. Asking for `spark` is a Codex model choice (`--model spark` through the helper), not a delegate switch.
+senior-mode has three delegation paths. Codex through the companion script is the default; the other two are opt-in. Never switch delegates silently; state in one line which delegate is running.
+
+| Path | When | Runtime |
+| --- | --- | --- |
+| **Codex** (default) | No delegate named, or `/senior-mode:codex`, "코덱스로" | Companion script — Codex Runtime Contract below |
+| **Opus single-agent** | "opus로 구현", "opus에게 위임", "opus로 조사" | `Agent` tool with `model: "opus"` — mapping below |
+| **Anthropic team** | `/senior-mode:team`, "팀 모드", "팀으로 오케스트레이션", "anthropic 모델만으로" | Agent team led by the session model — read `references/team-runtime.md` beside this file |
+
+The `/senior-mode:team` and `/senior-mode:codex` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `spark` is a Codex model choice (`--model spark` through the helper), not a delegate switch.
 
 Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
 

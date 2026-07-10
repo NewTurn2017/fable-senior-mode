@@ -120,27 +120,46 @@ Once LazyCodex is in play, Claude routes the delegation through exactly one trig
 
 Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 
-## Opus 4.8 delegation (optional)
+## Three delegation paths
 
-Codex is the default delegate, but if you explicitly ask — "implement this with opus", "have opus investigate" — the same delegation contract routes to Opus 4.8 instead. This path uses Claude Code's built-in Agent tool (`model: "opus"`) rather than the companion script, so it needs no extra install or setup. Investigation maps to the read-only Explore agent, implementation to a general-purpose agent (worktree isolation for risky multi-file changes), and the role boundaries and report-handling rules apply unchanged. Claude never switches delegates unless you ask.
+Codex is the default delegate, but explicit requests route to Anthropic models instead. Every path runs the same senior contract (role boundaries, delegation prompts, report handling), and Claude never switches delegates on its own.
+
+| Entry point | Delegate | Runtime |
+| --- | --- | --- |
+| `/senior-mode` (default) | Codex | companion script |
+| `/senior-mode:codex` | Codex, pinned | companion script (pinned for the session) |
+| "implement this with opus" | Opus 4.8 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
+| `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 4.8) as team lead |
+
+**Opus single agent** — investigation maps to the read-only Explore agent, implementation to a general-purpose agent (worktree isolation for risky multi-file changes). No extra install or setup.
+
+**Agent team mode** — built on [Claude Code's official agent teams](https://code.claude.com/docs/en/agent-teams): the main model you picked with `/model` acts as team lead (the senior) and delegates investigation, review, and implementation to Claude teammates in parallel. Teammates default to Opus; the lead writes no code — it owns spawn prompts, plan approvals, and the final judgment. Agent teams are experimental, so add `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}` to `~/.claude/settings.json` and restart; when disabled, the skill offers a degraded fallback over background subagents. The full contract lives in `references/team-runtime.md`.
 
 ## Uninstall
 
 ```bash
 rm -rf ~/.claude/skills/senior-mode
+rm ~/.claude/commands/senior-mode
 ```
 
 ## Repository layout
 
 ```
 senior-mode/
-├─ SKILL.md                    # the skill definition Claude Code loads
+├─ SKILL.md                    # the skill definition Claude Code loads (incl. delegate routing)
+├─ references/
+│  └─ team-runtime.md          # /senior-mode:team agent-team runtime contract
+├─ commands/
+│  ├─ team.md                  # /senior-mode:team slash command
+│  └─ codex.md                 # /senior-mode:codex slash command
 ├─ scripts/
 │  └─ codex-companion.mjs      # dependency-free Codex runtime boundary
 ├─ install.sh                  # curl-pipeable installer
 ├─ README.md                   # Korean README
 └─ README.en.md                # this file
 ```
+
+The installer symlinks `commands/` to `~/.claude/commands/senior-mode`, which registers the two slash commands.
 
 ## License
 
