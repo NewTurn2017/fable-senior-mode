@@ -3,7 +3,7 @@
 *비싼 모델은 시니어 판단에만 쓰고 손이 많이 가는 조사는 Codex에 맡기는 Claude Code 스킬.*
 
 <p align="center">
-  <img src="./docs/senior-mode-webtoon.png" alt="senior-mode 웹툰 — fable-5(김부장)는 설계·계획·검토, Codex 5.5(막내)는 자료조사·코드검색·구현" width="760">
+  <img src="./docs/senior-mode-webtoon.png" alt="senior-mode 웹툰 — fable-5(김부장)는 설계·계획·검토, Codex 5.6-Sol(막내)는 자료조사·코드검색·구현" width="760">
 </p>
 
 [English README](./README.en.md)
@@ -97,6 +97,8 @@ node scripts/codex-companion.mjs review --background --base main --cwd <repo>
 
 쓸 만한 플래그: `--prompt-file`(셸 따옴표에 안 깨지는 여러 줄 프롬프트), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
+`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `sol`(= `gpt-5.6-sol`)과 `spark`(= `gpt-5.3-codex-spark`)를 쓸 수 있고, `--effort`는 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다.
+
 작업 상태는 워크스페이스 루트의 `.senior-mode/codex/jobs/` 아래에 기록되고 gitignore됩니다.
 
 ## LazyCodex (선택)
@@ -128,8 +130,8 @@ Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준
 | --- | --- | --- |
 | `/senior-mode` (기본) | Codex | 컴패니언 스크립트 |
 | `/senior-mode:codex` | Codex 고정 | 컴패니언 스크립트 (세션 내내 고정) |
-| "opus로 구현해줘" | Opus 4.8 단일 에이전트 | Claude Code 내장 Agent 툴 (`model: "opus"`) |
-| `/senior-mode:team` | Anthropic 에이전트 팀 | 세션 메인 모델(fable-5 또는 Opus 4.8)이 팀 리드 |
+| "opus로 구현해줘" | Opus 5 단일 에이전트 | Claude Code 내장 Agent 툴 (`model: "opus"`) |
+| `/senior-mode:team` | Anthropic 에이전트 팀 | 세션 메인 모델(fable-5 또는 Opus 5)이 팀 리드 |
 
 **Opus 단일 에이전트** — 조사는 읽기 전용 Explore 에이전트, 구현은 general-purpose 에이전트(위험한 멀티파일 변경은 워크트리 격리)로 매핑됩니다. 별도 설치나 설정이 필요 없습니다.
 
@@ -154,6 +156,8 @@ senior-mode/
 │  └─ codex.md                 # /senior-mode:codex 슬래시 커맨드
 ├─ scripts/
 │  └─ codex-companion.mjs      # 의존성 없는 Codex 런타임 경계
+├─ docs/
+│  └─ senior-mode-webtoon.png  # README 상단 히어로 이미지
 ├─ install.sh                  # curl로 바로 실행하는 설치 스크립트
 ├─ README.md                   # 이 파일 (한국어)
 └─ README.en.md                # 영문 README

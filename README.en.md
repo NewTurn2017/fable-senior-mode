@@ -3,7 +3,7 @@
 *A Claude Code skill that keeps your most expensive model on senior judgment and hands the legwork to Codex.*
 
 <p align="center">
-  <img src="./docs/senior-mode-webtoon.png" alt="senior-mode webtoon — fable-5 (the manager) does design/planning/review, Codex 5.5 (the junior) does research/code-search/implementation" width="760">
+  <img src="./docs/senior-mode-webtoon.png" alt="senior-mode webtoon — fable-5 (the manager) does design/planning/review, Codex 5.6-Sol (the junior) does research/code-search/implementation" width="760">
 </p>
 
 [한국어 README](./README.md)
@@ -97,6 +97,8 @@ Every background job returns a job id. Use it instead of launching a second run:
 
 Useful flags: `--prompt-file` (multi-line prompts that survive shell quoting), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
+Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `sol` (= `gpt-5.6-sol`) and `spark` (= `gpt-5.3-codex-spark`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`.
+
 Job state is written under `.senior-mode/codex/jobs/` in the workspace root and is gitignored.
 
 ## LazyCodex (optional)
@@ -128,8 +130,8 @@ Codex is the default delegate, but explicit requests route to Anthropic models i
 | --- | --- | --- |
 | `/senior-mode` (default) | Codex | companion script |
 | `/senior-mode:codex` | Codex, pinned | companion script (pinned for the session) |
-| "implement this with opus" | Opus 4.8 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
-| `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 4.8) as team lead |
+| "implement this with opus" | Opus 5 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
+| `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 5) as team lead |
 
 **Opus single agent** — investigation maps to the read-only Explore agent, implementation to a general-purpose agent (worktree isolation for risky multi-file changes). No extra install or setup.
 
@@ -154,6 +156,8 @@ senior-mode/
 │  └─ codex.md                 # /senior-mode:codex slash command
 ├─ scripts/
 │  └─ codex-companion.mjs      # dependency-free Codex runtime boundary
+├─ docs/
+│  └─ senior-mode-webtoon.png  # README hero image
 ├─ install.sh                  # curl-pipeable installer
 ├─ README.md                   # Korean README
 └─ README.en.md                # this file

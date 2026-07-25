@@ -7,8 +7,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
-const VALID_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
-const MODEL_ALIASES = new Map([["spark", "gpt-5.3-codex-spark"]]);
+const VALID_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
+const MODEL_ALIASES = new Map([
+  ["sol", "gpt-5.6-sol"],
+  ["spark", "gpt-5.3-codex-spark"]
+]);
 const JOB_DIR_NAME = ".senior-mode/codex/jobs";
 const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 2000;
@@ -18,8 +21,8 @@ function printUsage() {
   console.log([
     "Usage:",
     "  node scripts/codex-companion.mjs setup [--json] [--cwd <dir>]",
-    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
-    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|spark>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
+    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|sol|spark>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
+    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|sol|spark>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
     "  node scripts/codex-companion.mjs status [job-id] [--wait] [--all] [--json] [--cwd <dir>]",
     "  node scripts/codex-companion.mjs wait <job-id> [--json] [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
     "  node scripts/codex-companion.mjs watch <job-id> [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",

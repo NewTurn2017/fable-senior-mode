@@ -4,7 +4,7 @@ This is the Anthropic-only delegation path of senior-mode, entered with `/senior
 
 Role mapping:
 
-- **Team lead = the senior.** The lead is this session's selected model (fable-5 or Opus 4.8 — whatever the user picked with `/model`). It decides the investigation shape, writes spawn prompts, reviews plans and reports, judges, and writes documents. It never writes code bodies and never starts implementing tasks itself while teammates work.
+- **Team lead = the senior.** The lead is this session's selected model (fable-5 or Opus 5 — whatever the user picked with `/model`). It decides the investigation shape, writes spawn prompts, reviews plans and reports, judges, and writes documents. It never writes code bodies and never starts implementing tasks itself while teammates work.
 - **Teammates = the delegates.** Claude instances that investigate, review, and implement. Anthropic models only in this mode; Codex and any external runtime are out of scope (that is `/senior-mode:codex`).
 
 ## Preflight

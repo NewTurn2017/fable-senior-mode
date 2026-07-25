@@ -1,11 +1,11 @@
 ---
 name: senior-mode
-description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, Opus 4.8 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, opus로 위임, opus로 구현, 팀으로 오케스트레이션, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
+description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, Opus 5 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, opus로 위임, opus로 구현, 팀으로 오케스트레이션, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
 ---
 
 # Senior Mode
 
-Use `senior-mode` to preserve fable-5 for scarce senior-engineer work. Claude is the senior lead: it decides what must be learned, writes precise prompts, invokes the delegate, reads the returned reports, judges the situation, and writes documents or next-step prompts. The delegate does repository investigation, review, debugging passes, and explicitly delegated implementation detail discovery. Codex through the bundled companion script is the default delegate; Opus 4.8 through the Agent tool is an opt-in alternate (see Delegate Selection).
+Use `senior-mode` to preserve fable-5 for scarce senior-engineer work. Claude is the senior lead: it decides what must be learned, writes precise prompts, invokes the delegate, reads the returned reports, judges the situation, and writes documents or next-step prompts. The delegate does repository investigation, review, debugging passes, and explicitly delegated implementation detail discovery. Codex through the bundled companion script is the default delegate; Opus 5 through the Agent tool is an opt-in alternate (see Delegate Selection).
 
 This skill follows the official `openai/codex-plugin-cc` shape: Claude does not hand-roll Codex CLI calls. It uses the local helper script as the runtime boundary.
 
@@ -32,11 +32,11 @@ senior-mode has three delegation paths. Codex through the companion script is th
 | **Opus single-agent** | "opus로 구현", "opus에게 위임", "opus로 조사" | `Agent` tool with `model: "opus"` — mapping below |
 | **Anthropic team** | `/senior-mode:team`, "팀 모드", "팀으로 오케스트레이션", "anthropic 모델만으로" | Agent team led by the session model — read `references/team-runtime.md` beside this file |
 
-The `/senior-mode:team` and `/senior-mode:codex` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `spark` is a Codex model choice (`--model spark` through the helper), not a delegate switch.
+The `/senior-mode:team` and `/senior-mode:codex` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol` or `spark` is a Codex model choice (`--model sol` / `--model spark` through the helper), not a delegate switch.
 
 Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
 
-| Codex invocation | Opus 4.8 equivalent |
+| Codex invocation | Opus 5 equivalent |
 | --- | --- |
 | `task --wait --read-only` | `Agent` with `subagent_type: "Explore"`, `model: "opus"`, `run_in_background: false` |
 | `task --background --read-only` | Same, default background run; the completion notification replaces `wait`/`watch` |
@@ -82,8 +82,8 @@ Runtime rules:
 - Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
 - Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
-- Use `--model` only when the user asks for a specific model. Map `spark` through the helper rather than writing the concrete model name yourself.
-- Use `--effort` only when the user asks for a specific reasoning effort.
+- Use `--model` only when the user asks for a specific model. Otherwise let Codex use its own configured default (currently `gpt-5.6-sol`). Map `sol` / `spark` through the helper rather than writing the concrete model name yourself.
+- Use `--effort` only when the user asks for a specific reasoning effort. `max` and `ultra` exist on the 5.6 family; do not reach for them by default.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
