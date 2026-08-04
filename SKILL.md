@@ -29,10 +29,11 @@ senior-mode has three delegation paths. Codex through the companion script is th
 | Path | When | Runtime |
 | --- | --- | --- |
 | **Codex** (default) | No delegate named, or `/senior-mode:codex`, "코덱스로" | Companion script — Codex Runtime Contract below |
+| **Codex luna** | `/senior-mode:luna`, "luna로", "루나로" | Same companion script, with `--model luna --effort max` pinned on every call |
 | **Opus single-agent** | "opus로 구현", "opus에게 위임", "opus로 조사" | `Agent` tool with `model: "opus"` — mapping below |
 | **Anthropic team** | `/senior-mode:team`, "팀 모드", "팀으로 오케스트레이션", "anthropic 모델만으로" | Agent team led by the session model — read `references/team-runtime.md` beside this file |
 
-The `/senior-mode:team` and `/senior-mode:codex` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol` or `spark` is a Codex model choice (`--model sol` / `--model spark` through the helper), not a delegate switch.
+The `/senior-mode:team`, `/senior-mode:codex`, and `/senior-mode:luna` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol`, `luna`, or `spark` is a Codex model choice (`--model sol` / `--model luna` / `--model spark` through the helper), not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
 
 Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
 
@@ -82,8 +83,8 @@ Runtime rules:
 - Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
 - Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
-- Use `--model` only when the user asks for a specific model. Otherwise let Codex use its own configured default (currently `gpt-5.6-sol`). Map `sol` / `spark` through the helper rather than writing the concrete model name yourself.
-- Use `--effort` only when the user asks for a specific reasoning effort. `max` and `ultra` exist on the 5.6 family; do not reach for them by default.
+- Use `--model` only when the user asks for a specific model. Otherwise let Codex use its own configured default (currently `gpt-5.6-sol`). Map `sol` / `luna` / `spark` through the helper rather than writing the concrete model name yourself.
+- Use `--effort` only when the user asks for a specific reasoning effort. `max` and `ultra` exist on the 5.6 family; do not reach for them by default. Under `/senior-mode:luna`, `--model luna --effort max` is the session pin and goes on every call.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.

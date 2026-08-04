@@ -97,7 +97,7 @@ node scripts/codex-companion.mjs review --background --base main --cwd <repo>
 
 쓸 만한 플래그: `--prompt-file`(셸 따옴표에 안 깨지는 여러 줄 프롬프트), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
-`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `sol`(= `gpt-5.6-sol`)과 `spark`(= `gpt-5.3-codex-spark`)를 쓸 수 있고, `--effort`는 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다.
+`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `sol`(= `gpt-5.6-sol`)·`luna`(= `gpt-5.6-luna`)·`spark`(= `gpt-5.3-codex-spark`)를 쓸 수 있고, `--effort`는 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다.
 
 작업 상태는 워크스페이스 루트의 `.senior-mode/codex/jobs/` 아래에 기록되고 gitignore됩니다.
 
@@ -130,6 +130,7 @@ Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준
 | --- | --- | --- |
 | `/senior-mode` (기본) | Codex | 컴패니언 스크립트 |
 | `/senior-mode:codex` | Codex 고정 | 컴패니언 스크립트 (세션 내내 고정) |
+| `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort 고정 | 컴패니언 스크립트 (모델·effort까지 세션 내내 고정) |
 | "opus로 구현해줘" | Opus 5 단일 에이전트 | Claude Code 내장 Agent 툴 (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic 에이전트 팀 | 세션 메인 모델(fable-5 또는 Opus 5)이 팀 리드 |
 
@@ -153,7 +154,8 @@ senior-mode/
 │  └─ team-runtime.md          # /senior-mode:team 에이전트 팀 런타임 계약
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team 슬래시 커맨드
-│  └─ codex.md                 # /senior-mode:codex 슬래시 커맨드
+│  ├─ codex.md                 # /senior-mode:codex 슬래시 커맨드
+│  └─ luna.md                  # /senior-mode:luna 슬래시 커맨드 (gpt-5.6-luna, max effort)
 ├─ scripts/
 │  └─ codex-companion.mjs      # 의존성 없는 Codex 런타임 경계
 ├─ docs/

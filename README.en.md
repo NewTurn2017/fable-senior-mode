@@ -97,7 +97,7 @@ Every background job returns a job id. Use it instead of launching a second run:
 
 Useful flags: `--prompt-file` (multi-line prompts that survive shell quoting), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
-Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `sol` (= `gpt-5.6-sol`) and `spark` (= `gpt-5.3-codex-spark`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`.
+Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `sol` (= `gpt-5.6-sol`), `luna` (= `gpt-5.6-luna`), and `spark` (= `gpt-5.3-codex-spark`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`.
 
 Job state is written under `.senior-mode/codex/jobs/` in the workspace root and is gitignored.
 
@@ -130,6 +130,7 @@ Codex is the default delegate, but explicit requests route to Anthropic models i
 | --- | --- | --- |
 | `/senior-mode` (default) | Codex | companion script |
 | `/senior-mode:codex` | Codex, pinned | companion script (pinned for the session) |
+| `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort, pinned | companion script (model and effort pinned for the session) |
 | "implement this with opus" | Opus 5 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 5) as team lead |
 
@@ -153,7 +154,8 @@ senior-mode/
 │  └─ team-runtime.md          # /senior-mode:team agent-team runtime contract
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team slash command
-│  └─ codex.md                 # /senior-mode:codex slash command
+│  ├─ codex.md                 # /senior-mode:codex slash command
+│  └─ luna.md                  # /senior-mode:luna slash command (gpt-5.6-luna, max effort)
 ├─ scripts/
 │  └─ codex-companion.mjs      # dependency-free Codex runtime boundary
 ├─ docs/

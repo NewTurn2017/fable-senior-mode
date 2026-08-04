@@ -27,16 +27,16 @@ NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 
 mkdir -p "$SKILLS_DIR"
 
-# --- slash commands (/senior-mode:team, /senior-mode:codex) -------------------
+# --- slash commands (/senior-mode:team, /senior-mode:codex, /senior-mode:luna)
 link_commands() {
   local commands_root="${CLAUDE_COMMANDS_DIR:-$HOME/.claude/commands}"
   mkdir -p "$commands_root"
   if [ -e "$commands_root/senior-mode" ] && [ ! -L "$commands_root/senior-mode" ]; then
-    warn "$commands_root/senior-mode exists and is not a symlink. Skipping command link; move it aside and re-run to get /senior-mode:team and /senior-mode:codex."
+    warn "$commands_root/senior-mode exists and is not a symlink. Skipping command link; move it aside and re-run to get /senior-mode:team, /senior-mode:codex, and /senior-mode:luna."
     return 0
   fi
   ln -sfn "$TARGET/commands" "$commands_root/senior-mode"
-  info "Linked slash commands: /senior-mode:team, /senior-mode:codex"
+  info "Linked slash commands: /senior-mode:team, /senior-mode:codex, /senior-mode:luna"
 }
 
 # --- install or update -------------------------------------------------------
@@ -68,4 +68,4 @@ fi
 info "Installed at $TARGET"
 echo
 echo "Next: open Claude Code and invoke the skill with 'senior-mode' or '시니어 모드'."
-echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."
+echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:luna (Codex gpt-5.6-luna, max effort) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."
