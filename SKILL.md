@@ -1,6 +1,6 @@
 ---
 name: senior-mode
-description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, Opus 5 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, opus로 위임, opus로 구현, 팀으로 오케스트레이션, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
+description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, DeepSeek via OpenRouter through the same script, Opus 5 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, deepseek으로 위임, openrouter로 위임, opus로 위임, opus로 구현, 팀으로 오케스트레이션, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
 ---
 
 # Senior Mode
@@ -24,16 +24,17 @@ Do not use this skill for:
 
 ## Delegate Selection
 
-senior-mode has three delegation paths. Codex through the companion script is the default; the other two are opt-in. Never switch delegates silently; state in one line which delegate is running.
+senior-mode has four delegation paths. Codex through the companion script is the default; the rest are opt-in. Never switch delegates silently; state in one line which delegate is running.
 
 | Path | When | Runtime |
 | --- | --- | --- |
 | **Codex** (default) | No delegate named, or `/senior-mode:codex`, "코덱스로" | Companion script — Codex Runtime Contract below |
 | **Codex luna** | `/senior-mode:luna`, "luna로", "루나로" | Same companion script, with `--model luna --effort max` pinned on every call |
+| **DeepSeek (OpenRouter)** | `/senior-mode:deepseek`, "deepseek으로", "openrouter로" | Same companion script, with `--profile openrouter` pinned on every call — OpenRouter DeepSeek Delegate below |
 | **Opus single-agent** | "opus로 구현", "opus에게 위임", "opus로 조사" | `Agent` tool with `model: "opus"` — mapping below |
 | **Anthropic team** | `/senior-mode:team`, "팀 모드", "팀으로 오케스트레이션", "anthropic 모델만으로" | Agent team led by the session model — read `references/team-runtime.md` beside this file |
 
-The `/senior-mode:team`, `/senior-mode:codex`, and `/senior-mode:luna` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol`, `luna`, or `spark` is a Codex model choice (`--model sol` / `--model luna` / `--model spark` through the helper), not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
+The `/senior-mode:team`, `/senior-mode:codex`, `/senior-mode:luna`, and `/senior-mode:deepseek` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol`, `luna`, or `spark` is a Codex model choice (`--model sol` / `--model luna` / `--model spark` through the helper), not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
 
 Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
 
@@ -84,11 +85,35 @@ Runtime rules:
 - Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
 - Use `--model` only when the user asks for a specific model. Otherwise let Codex use its own configured default (currently `gpt-5.6-sol`). Map `sol` / `luna` / `spark` through the helper rather than writing the concrete model name yourself.
+- Use `--profile` only to switch provider, not model. Today the only profile is `openrouter` — see OpenRouter DeepSeek Delegate below.
 - Use `--effort` only when the user asks for a specific reasoning effort. `max` and `ultra` exist on the 5.6 family; do not reach for them by default. Under `/senior-mode:luna`, `--model luna --effort max` is the session pin and goes on every call.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
 - Use `watch <job-id>` when integrating with a monitor or hook-style flow. It emits one JSON status line per change and a final `done` or `timeout` line.
+
+## OpenRouter DeepSeek Delegate
+
+`/senior-mode:deepseek` keeps the entire Codex Runtime Contract and swaps only the model behind it. Codex CLI is still the agent harness; OpenRouter is the provider. Add `--profile openrouter` to every `task` and `review` call:
+
+```bash
+node scripts/codex-companion.mjs task --wait --read-only --profile openrouter --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs review --background --profile openrouter --base main --cwd <repo>
+```
+
+How it resolves:
+
+- `--profile openrouter` makes Codex layer `$CODEX_HOME/openrouter.config.toml` (template: `references/openrouter.config.toml`) over the base config, pinning `deepseek/deepseek-v4-flash-0731` with a 1M context window. The default Codex path is untouched.
+- The API key is read from `~/.config/openrouter/key` by the companion script and injected as `OPENROUTER_API_KEY` for profile runs only. It is never written to the profile, the job files, or `--dry-run` output. An existing `OPENROUTER_API_KEY` in the environment wins.
+- Run `setup` to confirm the path: it reports `OpenRouter: ready (profile + key present)`.
+
+Rules specific to this delegate:
+
+- Do not pass `--effort`. Reasoning effort is an OpenAI-family control; the DeepSeek profile does not take it.
+- `--model deepseek` is a convenience alias for the full slug. Prefer the profile alone — the profile already pins the model, and the alias only matters when overriding it from another profile.
+- Everything else in this skill applies unchanged: Role Boundaries, the Delegation Prompt Contract, Report Handling, the review no-auto-fix rule, and Workflow steps 5–8.
+- LazyCodex triggers are not supported on this path; they assume the OmO harness on the default Codex setup.
+- This is a cost/context tradeoff, not a capability upgrade. DeepSeek V4 Flash costs roughly two orders of magnitude less than the frontier delegates and holds 1M tokens, which suits broad repository scans and bulk evidence gathering. For work where a wrong judgment is expensive, say so in one line and offer `/senior-mode:codex` instead.
 
 ## LazyCodex Delegation
 

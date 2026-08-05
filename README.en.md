@@ -97,7 +97,7 @@ Every background job returns a job id. Use it instead of launching a second run:
 
 Useful flags: `--prompt-file` (multi-line prompts that survive shell quoting), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
-Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `sol` (= `gpt-5.6-sol`), `luna` (= `gpt-5.6-luna`), and `spark` (= `gpt-5.3-codex-spark`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`.
+Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `sol` (= `gpt-5.6-sol`), `luna` (= `gpt-5.6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4-flash-0731`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
 
 Job state is written under `.senior-mode/codex/jobs/` in the workspace root and is gitignored.
 
@@ -122,17 +122,35 @@ Once LazyCodex is in play, Claude routes the delegation through exactly one trig
 
 Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 
-## Three delegation paths
+## Four delegation paths
 
-Codex is the default delegate, but explicit requests route to Anthropic models instead. Every path runs the same senior contract (role boundaries, delegation prompts, report handling), and Claude never switches delegates on its own.
+Codex is the default delegate, but explicit requests route to an OpenRouter model or to Anthropic models instead. Every path runs the same senior contract (role boundaries, delegation prompts, report handling), and Claude never switches delegates on its own.
 
 | Entry point | Delegate | Runtime |
 | --- | --- | --- |
 | `/senior-mode` (default) | Codex | companion script |
 | `/senior-mode:codex` | Codex, pinned | companion script (pinned for the session) |
 | `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort, pinned | companion script (model and effort pinned for the session) |
+| `/senior-mode:deepseek` | DeepSeek V4 Flash via OpenRouter, pinned | companion script + `--profile openrouter` |
 | "implement this with opus" | Opus 5 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 5) as team lead |
+
+**DeepSeek via OpenRouter** — the agent harness is still Codex CLI; only the model changes to `deepseek/deepseek-v4-flash-0731`. It uses Codex's `--profile` layering, so your existing Codex config stays untouched. Two prerequisites:
+
+```bash
+# 1) the profile (install.sh does this for you; manual install also works)
+cp references/openrouter.config.toml ~/.codex/openrouter.config.toml
+
+# 2) the API key — read from a file, not an environment variable
+mkdir -p ~/.config/openrouter
+printf %s 'sk-or-...' > ~/.config/openrouter/key
+chmod 600 ~/.config/openrouter/key
+
+# verify — expect "OpenRouter: ready (profile + key present)"
+node scripts/codex-companion.mjs setup
+```
+
+The companion script injects the key as `OPENROUTER_API_KEY` for `--profile` runs only. It is never written to the profile, the job files, or `--dry-run` output. With a 1M context at roughly two orders of magnitude less cost than the frontier delegates, it suits broad repository scans and bulk evidence gathering; for judgment calls that are expensive to get wrong, use `/senior-mode:codex`. This path does not take `--effort`.
 
 **Opus single agent** — investigation maps to the read-only Explore agent, implementation to a general-purpose agent (worktree isolation for risky multi-file changes). No extra install or setup.
 
@@ -151,11 +169,13 @@ rm ~/.claude/commands/senior-mode
 senior-mode/
 ├─ SKILL.md                    # the skill definition Claude Code loads (incl. delegate routing)
 ├─ references/
-│  └─ team-runtime.md          # /senior-mode:team agent-team runtime contract
+│  ├─ team-runtime.md          # /senior-mode:team agent-team runtime contract
+│  └─ openrouter.config.toml   # Codex profile template for /senior-mode:deepseek
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team slash command
 │  ├─ codex.md                 # /senior-mode:codex slash command
-│  └─ luna.md                  # /senior-mode:luna slash command (gpt-5.6-luna, max effort)
+│  ├─ luna.md                  # /senior-mode:luna slash command (gpt-5.6-luna, max effort)
+│  └─ deepseek.md              # /senior-mode:deepseek slash command (OpenRouter DeepSeek V4 Flash)
 ├─ scripts/
 │  └─ codex-companion.mjs      # dependency-free Codex runtime boundary
 ├─ docs/

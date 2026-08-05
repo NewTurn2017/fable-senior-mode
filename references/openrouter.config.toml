@@ -1,0 +1,23 @@
+# senior-mode: OpenRouter delegate profile for Codex CLI.
+#
+# Install to $CODEX_HOME/openrouter.config.toml (default ~/.codex/openrouter.config.toml).
+# Codex layers this on top of the base config only when invoked with `--profile openrouter`,
+# so the default Codex/ChatGPT path stays untouched.
+#
+# The API key is NOT stored here. codex-companion.mjs reads ~/.config/openrouter/key
+# and injects it as OPENROUTER_API_KEY for profile runs.
+
+model = "deepseek/deepseek-v4-flash-0731"
+model_provider = "openrouter"
+model_context_window = 1000000
+model_max_output_tokens = 65536
+
+[model_providers.openrouter]
+name = "OpenRouter"
+base_url = "https://openrouter.ai/api/v1"
+env_key = "OPENROUTER_API_KEY"
+wire_api = "responses"
+
+[model_providers.openrouter.http_headers]
+"HTTP-Referer" = "https://github.com/NewTurn2017/fable-senior-mode"
+"X-Title" = "senior-mode"

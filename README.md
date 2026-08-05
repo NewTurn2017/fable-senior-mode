@@ -97,7 +97,7 @@ node scripts/codex-companion.mjs review --background --base main --cwd <repo>
 
 쓸 만한 플래그: `--prompt-file`(셸 따옴표에 안 깨지는 여러 줄 프롬프트), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
-`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `sol`(= `gpt-5.6-sol`)·`luna`(= `gpt-5.6-luna`)·`spark`(= `gpt-5.3-codex-spark`)를 쓸 수 있고, `--effort`는 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다.
+`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `sol`(= `gpt-5.6-sol`)·`luna`(= `gpt-5.6-luna`)·`spark`(= `gpt-5.3-codex-spark`)·`deepseek`(= `deepseek/deepseek-v4-flash-0731`)를 쓸 수 있고, `--effort`는 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다. `--profile <이름>`은 Codex 프로필을 레이어링해 제공자 자체를 바꿉니다(현재는 `openrouter` 하나).
 
 작업 상태는 워크스페이스 루트의 `.senior-mode/codex/jobs/` 아래에 기록되고 gitignore됩니다.
 
@@ -122,17 +122,35 @@ LazyCodex를 쓰기로 하면 Claude가 트리거 하나를 골라 위임을 라
 
 Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준, Must-NOT 범위, 완료 마커)까지만 씁니다. 상세 태스크 분해는 저장소를 직접 탐색하는 OmO 플래너의 몫입니다. 큰 작업은 2단계로 갑니다: `$ulw-plan`이 `.omo/plans/<slug>.md`를 만들고, Claude가 시니어 관점으로 검토하고, 사용자가 승인하면 `$start-work`로 실행. 프롬프트 파일 첫 줄에 트리거를 단독으로 넣고 평소대로 `task`를 돌리면 됩니다. 완료 추적은 계속 `wait` / `watch` / `status` / `result`로 하세요.
 
-## 위임 경로 3가지
+## 위임 경로 4가지
 
-기본 위임처는 Codex지만, 명시적으로 요청하면 Anthropic 모델로도 위임합니다. 어느 경로든 시니어 계약(역할 경계·위임 프롬프트·보고서 처리)은 동일하고, Claude가 임의로 위임처를 바꾸지 않습니다.
+기본 위임처는 Codex지만, 명시적으로 요청하면 OpenRouter 모델이나 Anthropic 모델로도 위임합니다. 어느 경로든 시니어 계약(역할 경계·위임 프롬프트·보고서 처리)은 동일하고, Claude가 임의로 위임처를 바꾸지 않습니다.
 
 | 진입점 | 위임처 | 런타임 |
 | --- | --- | --- |
 | `/senior-mode` (기본) | Codex | 컴패니언 스크립트 |
 | `/senior-mode:codex` | Codex 고정 | 컴패니언 스크립트 (세션 내내 고정) |
 | `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort 고정 | 컴패니언 스크립트 (모델·effort까지 세션 내내 고정) |
+| `/senior-mode:deepseek` | DeepSeek V4 Flash (OpenRouter) 고정 | 컴패니언 스크립트 + `--profile openrouter` |
 | "opus로 구현해줘" | Opus 5 단일 에이전트 | Claude Code 내장 Agent 툴 (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic 에이전트 팀 | 세션 메인 모델(fable-5 또는 Opus 5)이 팀 리드 |
+
+**DeepSeek (OpenRouter)** — 에이전트 하네스는 그대로 Codex CLI이고 모델만 `deepseek/deepseek-v4-flash-0731`로 갈아끼웁니다. Codex의 `--profile` 레이어링을 쓰기 때문에 기존 Codex 설정은 건드리지 않습니다. 준비물은 두 가지:
+
+```bash
+# 1) 프로필 (install.sh가 자동으로 넣지만, 수동 설치도 가능)
+cp references/openrouter.config.toml ~/.codex/openrouter.config.toml
+
+# 2) API 키 파일 — 환경변수가 아니라 파일에서 읽습니다
+mkdir -p ~/.config/openrouter
+printf %s 'sk-or-...' > ~/.config/openrouter/key
+chmod 600 ~/.config/openrouter/key
+
+# 확인 — "OpenRouter: ready (profile + key present)" 가 나와야 합니다
+node scripts/codex-companion.mjs setup
+```
+
+키는 컴패니언 스크립트가 `--profile` 실행에만 `OPENROUTER_API_KEY`로 주입합니다. 프로필 파일·잡 파일·`--dry-run` 출력 어디에도 기록되지 않습니다. 1M 컨텍스트에 프런티어 모델 대비 두 자릿수 배 저렴해서 넓은 저장소 스캔·대량 증거 수집에 맞고, 판단 실수 비용이 큰 작업은 `/senior-mode:codex`가 낫습니다. 이 경로에서는 `--effort`를 쓰지 않습니다.
 
 **Opus 단일 에이전트** — 조사는 읽기 전용 Explore 에이전트, 구현은 general-purpose 에이전트(위험한 멀티파일 변경은 워크트리 격리)로 매핑됩니다. 별도 설치나 설정이 필요 없습니다.
 
@@ -151,11 +169,13 @@ rm ~/.claude/commands/senior-mode
 senior-mode/
 ├─ SKILL.md                    # Claude Code가 읽는 스킬 정의 (위임 경로 라우팅 포함)
 ├─ references/
-│  └─ team-runtime.md          # /senior-mode:team 에이전트 팀 런타임 계약
+│  ├─ team-runtime.md          # /senior-mode:team 에이전트 팀 런타임 계약
+│  └─ openrouter.config.toml   # /senior-mode:deepseek 용 Codex 프로필 템플릿
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team 슬래시 커맨드
 │  ├─ codex.md                 # /senior-mode:codex 슬래시 커맨드
-│  └─ luna.md                  # /senior-mode:luna 슬래시 커맨드 (gpt-5.6-luna, max effort)
+│  ├─ luna.md                  # /senior-mode:luna 슬래시 커맨드 (gpt-5.6-luna, max effort)
+│  └─ deepseek.md              # /senior-mode:deepseek 슬래시 커맨드 (OpenRouter DeepSeek V4 Flash)
 ├─ scripts/
 │  └─ codex-companion.mjs      # 의존성 없는 Codex 런타임 경계
 ├─ docs/

@@ -2,6 +2,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -11,8 +12,11 @@ const VALID_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhig
 const MODEL_ALIASES = new Map([
   ["sol", "gpt-5.6-sol"],
   ["luna", "gpt-5.6-luna"],
-  ["spark", "gpt-5.3-codex-spark"]
+  ["spark", "gpt-5.3-codex-spark"],
+  ["deepseek", "deepseek/deepseek-v4-flash-0731"]
 ]);
+const OPENROUTER_KEY_FILE = path.join(os.homedir(), ".config", "openrouter", "key");
+const OPENROUTER_PROFILE_FILE = path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "openrouter.config.toml");
 const JOB_DIR_NAME = ".senior-mode/codex/jobs";
 const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 2000;
@@ -22,8 +26,8 @@ function printUsage() {
   console.log([
     "Usage:",
     "  node scripts/codex-companion.mjs setup [--json] [--cwd <dir>]",
-    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|sol|luna|spark>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
-    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|sol|luna|spark>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
+    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
+    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|sol|luna|spark|deepseek>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
     "  node scripts/codex-companion.mjs status [job-id] [--wait] [--all] [--json] [--cwd <dir>]",
     "  node scripts/codex-companion.mjs wait <job-id> [--json] [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
     "  node scripts/codex-companion.mjs watch <job-id> [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
@@ -129,6 +133,24 @@ function normalizeModel(model) {
     return null;
   }
   return MODEL_ALIASES.get(trimmed.toLowerCase()) ?? trimmed;
+}
+
+function readOpenRouterKey() {
+  try {
+    return fs.readFileSync(OPENROUTER_KEY_FILE, "utf8").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// A Codex profile (-p <name>) is the only path that talks to a non-OpenAI provider here, so the
+// OpenRouter key file is read lazily and only injected for profile runs.
+function invocationEnv(request) {
+  if (!request.profile || process.env.OPENROUTER_API_KEY) {
+    return process.env;
+  }
+  const key = readOpenRouterKey();
+  return key ? { ...process.env, OPENROUTER_API_KEY: key } : process.env;
 }
 
 function normalizeEffort(effort) {
@@ -343,6 +365,9 @@ function summarizePrompt(prompt) {
 function buildCodexExecInvocation(request) {
   const sandbox = request.write ? "workspace-write" : "read-only";
   const args = ["-C", request.cwd, "--sandbox", sandbox, "--ask-for-approval", "never"];
+  if (request.profile) {
+    args.push("--profile", request.profile);
+  }
   if (request.model) {
     args.push("--model", request.model);
   }
@@ -357,12 +382,16 @@ function buildCodexExecInvocation(request) {
   return {
     command: "codex",
     args,
+    env: invocationEnv(request),
     stdin: request.prompt || "Continue the previous Codex task."
   };
 }
 
 function buildCodexReviewInvocation(request) {
   const args = ["-C", request.cwd];
+  if (request.profile) {
+    args.push("--profile", request.profile);
+  }
   if (request.model) {
     args.push("--model", request.model);
   }
@@ -383,6 +412,7 @@ function buildCodexReviewInvocation(request) {
   return {
     command: "codex",
     args,
+    env: invocationEnv(request),
     stdin: request.prompt || ""
   };
 }
@@ -395,6 +425,7 @@ function renderDryRun(invocation, request) {
   return `${JSON.stringify({
     kind: request.kind,
     cwd: request.cwd,
+    profile: request.profile ?? null,
     write: Boolean(request.write),
     resumeLast: Boolean(request.resumeLast),
     command: invocation.command,
@@ -409,7 +440,7 @@ function runInvocation(invocation, options = {}) {
     let settled = false;
     const child = spawn(invocation.command, invocation.args, {
       cwd: options.cwd,
-      env: process.env,
+      env: invocation.env ?? process.env,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true
     });
@@ -447,9 +478,14 @@ function renderSetup(report) {
   if (report.doctor) {
     lines.push(`Doctor: ${report.doctor.status === 0 ? "ok" : `failed (${report.doctor.error || report.doctor.stderr || report.doctor.stdout})`}`);
   }
+  const or = report.openrouter;
+  lines.push(`OpenRouter: ${or.ready ? "ready (profile + key present)" : `not ready — ${[or.profileFile ? null : "missing profile", or.keyFile ? null : "missing key file"].filter(Boolean).join(", ")}`}`);
   lines.push(report.ready ? "Ready: Codex helper can run." : "Ready: no. Install/login with Codex before delegating.");
   if (!report.codex.available) {
     lines.push("Next: npm install -g @openai/codex");
+  }
+  if (!or.ready) {
+    lines.push(`Next (DeepSeek path only): copy references/openrouter.config.toml to ${OPENROUTER_PROFILE_FILE} and put the key in ${OPENROUTER_KEY_FILE}.`);
   }
   return `${lines.join("\n")}\n`;
 }
@@ -463,12 +499,19 @@ function handleSetup(argv) {
   const node = commandStatus(process.execPath, ["--version"], { cwd });
   const codex = commandStatus("codex", ["--version"], { cwd });
   const doctor = codex.available ? runSync("codex", ["doctor", "--json"], { cwd, timeoutMs: 30000 }) : null;
+  const openrouterProfile = fs.existsSync(OPENROUTER_PROFILE_FILE);
+  const openrouterKey = Boolean(readOpenRouterKey());
   const report = {
     ready: Boolean(node.available && codex.available && (!doctor || doctor.status === 0)),
     cwd,
     script: SCRIPT_PATH,
     node,
     codex,
+    openrouter: {
+      ready: openrouterProfile && openrouterKey,
+      profileFile: openrouterProfile ? OPENROUTER_PROFILE_FILE : null,
+      keyFile: openrouterKey ? OPENROUTER_KEY_FILE : null
+    },
     doctor: doctor ? {
       status: doctor.status,
       stdout: doctor.stdout,
@@ -542,6 +585,7 @@ function buildCommonRequest(kind, cwd, options, prompt) {
     kind,
     cwd,
     prompt,
+    profile: options.profile ?? null,
     model: normalizeModel(options.model),
     background: Boolean(options.background),
     wait: Boolean(options.wait),
@@ -554,7 +598,7 @@ function buildCommonRequest(kind, cwd, options, prompt) {
 
 function buildTaskRequest(argv) {
   const { options, positionals } = parseArgs(argv, {
-    valueOptions: ["model", "effort", "cwd", "prompt-file", "state-dir", "timeout-ms", "poll-interval-ms"],
+    valueOptions: ["model", "effort", "profile", "cwd", "prompt-file", "state-dir", "timeout-ms", "poll-interval-ms"],
     booleanOptions: ["background", "wait", "write", "read-only", "resume-last", "resume", "fresh", "dry-run", "json"],
     aliases: { m: "model", C: "cwd" }
   });
@@ -577,7 +621,7 @@ function buildTaskRequest(argv) {
 
 function buildReviewRequest(argv) {
   const { options, positionals } = parseArgs(argv, {
-    valueOptions: ["model", "cwd", "prompt-file", "state-dir", "base", "commit", "title", "timeout-ms", "poll-interval-ms"],
+    valueOptions: ["model", "profile", "cwd", "prompt-file", "state-dir", "base", "commit", "title", "timeout-ms", "poll-interval-ms"],
     booleanOptions: ["background", "wait", "uncommitted", "dry-run", "json"],
     aliases: { m: "model", C: "cwd" }
   });

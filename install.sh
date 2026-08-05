@@ -27,22 +27,39 @@ NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 
 mkdir -p "$SKILLS_DIR"
 
-# --- slash commands (/senior-mode:team, /senior-mode:codex, /senior-mode:luna)
+# --- slash commands (/senior-mode:team, :codex, :luna, :deepseek)
 link_commands() {
   local commands_root="${CLAUDE_COMMANDS_DIR:-$HOME/.claude/commands}"
   mkdir -p "$commands_root"
   if [ -e "$commands_root/senior-mode" ] && [ ! -L "$commands_root/senior-mode" ]; then
-    warn "$commands_root/senior-mode exists and is not a symlink. Skipping command link; move it aside and re-run to get /senior-mode:team, /senior-mode:codex, and /senior-mode:luna."
+    warn "$commands_root/senior-mode exists and is not a symlink. Skipping command link; move it aside and re-run to get /senior-mode:team, :codex, :luna, and :deepseek."
     return 0
   fi
   ln -sfn "$TARGET/commands" "$commands_root/senior-mode"
-  info "Linked slash commands: /senior-mode:team, /senior-mode:codex, /senior-mode:luna"
+  info "Linked slash commands: /senior-mode:team, /senior-mode:codex, /senior-mode:luna, /senior-mode:deepseek"
+}
+
+# --- OpenRouter profile for the DeepSeek delegate (never overwrites an existing one)
+install_openrouter_profile() {
+  local codex_home="${CODEX_HOME:-$HOME/.codex}"
+  local dest="$codex_home/openrouter.config.toml"
+  if [ -e "$dest" ]; then
+    info "OpenRouter profile already present at $dest (left untouched)."
+    return 0
+  fi
+  mkdir -p "$codex_home"
+  cp "$TARGET/references/openrouter.config.toml" "$dest"
+  info "Installed OpenRouter profile at $dest"
+  if [ ! -s "$HOME/.config/openrouter/key" ]; then
+    warn "No OpenRouter key found. For /senior-mode:deepseek, run: mkdir -p ~/.config/openrouter && printf %s 'sk-or-...' > ~/.config/openrouter/key && chmod 600 ~/.config/openrouter/key"
+  fi
 }
 
 # --- install or update -------------------------------------------------------
 if [ -L "$TARGET" ]; then
   warn "$TARGET is a symlink (looks like a local dev checkout). Leaving the skill untouched."
   link_commands
+  install_openrouter_profile
   exit 0
 elif [ -d "$TARGET/.git" ]; then
   info "Updating existing install at $TARGET"
@@ -56,6 +73,7 @@ fi
 
 chmod +x "$TARGET/scripts/codex-companion.mjs" 2>/dev/null || true
 link_commands
+install_openrouter_profile
 
 # --- codex readiness check ---------------------------------------------------
 info "Checking Codex readiness"
@@ -68,4 +86,4 @@ fi
 info "Installed at $TARGET"
 echo
 echo "Next: open Claude Code and invoke the skill with 'senior-mode' or '시니어 모드'."
-echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:luna (Codex gpt-5.6-luna, max effort) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."
+echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:luna (Codex gpt-5.6-luna, max effort) · /senior-mode:deepseek (DeepSeek V4 Flash via OpenRouter) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."
