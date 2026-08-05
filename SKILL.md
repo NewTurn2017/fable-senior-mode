@@ -1,6 +1,7 @@
 ---
 name: senior-mode
-description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, DeepSeek via OpenRouter through the same script, Opus 5 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Use when the user asks for senior-mode, 시니어 모드, fable-5 판단, 코덱스에게 조사 시키기, deepseek으로 위임, openrouter로 위임, opus로 위임, opus로 구현, 팀으로 오케스트레이션, 정교한 프롬프트 작성, or when a complex task needs delegated research before a concise senior decision; do not use for small tasks, single-file edits, routine implementation, or any flow where fable-5 would write code bodies.
+disable-model-invocation: true
+description: Senior engineering orchestration mode for Claude Code where fable-5 is reserved for high-leverage judgment, precise delegation prompts, report triage, and document writing while investigation, review, and delegated implementation passes go to a delegate — Codex through this skill's companion script by default, DeepSeek via OpenRouter through the same script, Opus 5 through the Agent tool, or an Anthropic-only agent team (references/team-runtime.md) when the user explicitly asks. Explicit invocation only — run it when the user types /senior-mode or one of its pinned entry points (/senior-mode:codex, :luna, :deepseek, :team), never because a task merely looks like it would benefit. Not for small tasks, single-file edits, routine implementation, or any flow where the orchestrator would write code bodies.
 ---
 
 # Senior Mode
@@ -9,11 +10,14 @@ Use `senior-mode` to preserve fable-5 for scarce senior-engineer work. Claude is
 
 This skill follows the official `openai/codex-plugin-cc` shape: Claude does not hand-roll Codex CLI calls. It uses the local helper script as the runtime boundary.
 
-Use this skill only when the work is complex enough that senior judgment is more valuable than direct execution:
+## Invocation
+
+This skill is explicit-invocation only (`disable-model-invocation: true`). It runs when the user types `/senior-mode` or a pinned entry point — `/senior-mode:codex`, `/senior-mode:luna`, `/senior-mode:deepseek`, `/senior-mode:team` — and never because a task looked like a fit. Outside those entry points, handle the request on the normal path even if delegated investigation would have helped; if senior-mode looks clearly worthwhile, say so in one line and let the user decide.
+
+Once invoked, it suits work where senior judgment is worth more than direct execution:
 
 - Multi-file, architectural, product, migration, or debugging questions where premature coding would waste effort.
-- Requests that need careful situation judgment, tradeoff analysis, or a high-quality prompt for Codex.
-- User requests such as "senior-mode", "시니어 모드", "fable-5로 판단", "코덱스에게 조사 시켜", "정교한 프롬프트 작성".
+- Requests that need careful situation judgment, tradeoff analysis, or a high-quality prompt for the delegate.
 
 Do not use this skill for:
 

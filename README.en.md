@@ -64,7 +64,9 @@ chmod +x ~/.claude/skills/senior-mode/scripts/codex-companion.mjs
 
 ## Usage
 
-In Claude Code, invoke the skill by asking for it — "senior-mode", "시니어 모드", or by describing a task that needs delegated investigation before a decision. Claude then drives the companion script for you. You can also run the script directly:
+In Claude Code, turn it on by typing `/senior-mode` or a pinned entry point (`/senior-mode:codex`, `:luna`, `:deepseek`, `:team`). Claude then drives the companion script for you.
+
+The skill is **explicit-invocation only** (`disable-model-invocation: true`). Merely describing a task that would benefit from delegated investigation will not trigger it — you decide when to spend delegate tokens. You can also run the script directly, without the skill:
 
 ```bash
 # Readiness check
