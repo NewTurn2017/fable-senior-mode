@@ -122,6 +122,18 @@ LazyCodex를 쓰기로 하면 Claude가 트리거 하나를 골라 위임을 라
 
 Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준, Must-NOT 범위, 완료 마커)까지만 씁니다. 상세 태스크 분해는 저장소를 직접 탐색하는 OmO 플래너의 몫입니다. 큰 작업은 2단계로 갑니다: `$ulw-plan`이 `.omo/plans/<slug>.md`를 만들고, Claude가 시니어 관점으로 검토하고, 사용자가 승인하면 `$start-work`로 실행. 프롬프트 파일 첫 줄에 트리거를 단독으로 넣고 평소대로 `task`를 돌리면 됩니다. 완료 추적은 계속 `wait` / `watch` / `status` / `result`로 하세요.
 
+## 기본 모드 라우팅
+
+슬래시 커맨드로 고정하지 않은 기본 경로(`senior-mode`)에서는 오케스트레이터가 항상 세션에서 고른 모델(Opus 5 또는 fable-5)입니다. 판단은 위임하지 않고, 위임할 때마다 아래 3티어 중 하나를 고른 뒤 어느 티어인지 한 줄로 밝힙니다. "Codex 기본 모델에 맡긴다"는 선택지는 이 경로에 없습니다.
+
+| 티어 | 어떤 일 | 헬퍼 플래그 |
+| --- | --- | --- |
+| **Heavy** | 최고 성능 구현, 어려운 디버깅, 아키텍처가 걸린 조사 — 틀리면 비싼 일 | `--model sol --effort high` |
+| **Light** | 범위가 좁고 판단이 적은 일: 초점 조사, 기계적 수정, 단일 질문 증거 수집 | `--model luna --effort max` |
+| **Light + wide** | 같은 가벼운 일이지만 넓거나 대량일 때: 저장소 전체 스캔, 대용량 로그 분류, 다파일 훑기, 비용 절감 요청 | `--profile openrouter --effort high` |
+
+되돌리기 어려운 결정에 직접 들어가는 답이면 Heavy, 내가 직접 판단할 사실을 가져오는 일이면 Light입니다. Light 안에서는 `luna`가 기본이고, 병목이 추론 깊이가 아니라 분량·범위일 때 DeepSeek 티어로 갑니다. Light 결과가 얇거나 자기모순이면 같은 호출을 반복하지 말고 Heavy로 재위임합니다. 슬래시 커맨드로 고정한 세션이나 사용자가 모델·effort를 직접 지정한 경우에는 이 표가 적용되지 않습니다.
+
 ## 위임 경로 4가지
 
 기본 위임처는 Codex지만, 명시적으로 요청하면 OpenRouter 모델이나 Anthropic 모델로도 위임합니다. 어느 경로든 시니어 계약(역할 경계·위임 프롬프트·보고서 처리)은 동일하고, Claude가 임의로 위임처를 바꾸지 않습니다.
@@ -138,8 +150,8 @@ Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준
 **DeepSeek (OpenRouter)** — 에이전트 하네스는 그대로 Codex CLI이고 모델만 `deepseek/deepseek-v4-flash-0731`로 갈아끼웁니다. Codex의 `--profile` 레이어링을 쓰기 때문에 기존 Codex 설정은 건드리지 않습니다. 준비물은 두 가지:
 
 ```bash
-# 1) 프로필 (install.sh가 자동으로 넣지만, 수동 설치도 가능)
-cp references/openrouter.config.toml ~/.codex/openrouter.config.toml
+# 1) 프로필 + 모델 카탈로그 (install.sh가 자동으로 넣지만, 수동 설치도 가능)
+cp references/openrouter.config.toml references/openrouter-models.json ~/.codex/
 
 # 2) API 키 파일 — 환경변수가 아니라 파일에서 읽습니다
 mkdir -p ~/.config/openrouter
@@ -150,7 +162,7 @@ chmod 600 ~/.config/openrouter/key
 node scripts/codex-companion.mjs setup
 ```
 
-키는 컴패니언 스크립트가 `--profile` 실행에만 `OPENROUTER_API_KEY`로 주입합니다. 프로필 파일·잡 파일·`--dry-run` 출력 어디에도 기록되지 않습니다. 1M 컨텍스트에 프런티어 모델 대비 두 자릿수 배 저렴해서 넓은 저장소 스캔·대량 증거 수집에 맞고, 판단 실수 비용이 큰 작업은 `/senior-mode:codex`가 낫습니다. 이 경로에서는 `--effort`를 쓰지 않습니다.
+키는 컴패니언 스크립트가 `--profile` 실행에만 `OPENROUTER_API_KEY`로 주입합니다. 프로필 파일·잡 파일·`--dry-run` 출력 어디에도 기록되지 않습니다. 1M 컨텍스트에 프런티어 모델 대비 두 자릿수 배 저렴해서 넓은 저장소 스캔·대량 증거 수집에 맞고, 판단 실수 비용이 큰 작업은 `/senior-mode:codex`가 낫습니다. 기본 라우팅의 "Light + wide" 티어가 바로 이 경로이며 `--effort high`와 함께 씁니다.
 
 **Opus 단일 에이전트** — 조사는 읽기 전용 Explore 에이전트, 구현은 general-purpose 에이전트(위험한 멀티파일 변경은 워크트리 격리)로 매핑됩니다. 별도 설치나 설정이 필요 없습니다.
 
@@ -170,7 +182,8 @@ senior-mode/
 ├─ SKILL.md                    # Claude Code가 읽는 스킬 정의 (위임 경로 라우팅 포함)
 ├─ references/
 │  ├─ team-runtime.md          # /senior-mode:team 에이전트 팀 런타임 계약
-│  └─ openrouter.config.toml   # /senior-mode:deepseek 용 Codex 프로필 템플릿
+│  ├─ openrouter.config.toml   # /senior-mode:deepseek 용 Codex 프로필 템플릿
+│  └─ openrouter-models.json   # OpenRouter DeepSeek 모델 카탈로그 (컨텍스트·effort 메타데이터)
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team 슬래시 커맨드
 │  ├─ codex.md                 # /senior-mode:codex 슬래시 커맨드

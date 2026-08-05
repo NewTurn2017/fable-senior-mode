@@ -36,6 +36,27 @@ senior-mode has four delegation paths. Codex through the companion script is the
 
 The `/senior-mode:team`, `/senior-mode:codex`, `/senior-mode:luna`, and `/senior-mode:deepseek` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol`, `luna`, or `spark` is a Codex model choice (`--model sol` / `--model luna` / `--model spark` through the helper), not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
 
+## Default Delegate Routing
+
+On the default path (plain `senior-mode`, no pinned slash command), the orchestrator is always this session's selected model — Opus 5 or fable-5, whichever `/model` chose. It never delegates judgment, and it never picks a delegate tier silently: state the chosen tier in one line before invoking.
+
+Every delegation picks exactly one tier. There is no "let Codex use its default" on this path.
+
+| Tier | Work | Helper flags |
+| --- | --- | --- |
+| **Heavy** | Best-quality implementation, hard debugging, architecture-bearing investigation, anything where a wrong result is expensive | `--model sol --effort high` |
+| **Light** | Bounded, low-judgment work: focused investigation, mechanical edits, single-question evidence gathering, prompt validation | `--model luna --effort max` |
+| **Light + wide** | The same light work when it is bulk or wide-context: whole-repo scans, large log or dump triage, many-file sweeps, or when the user asks to keep cost down | `--profile openrouter --effort high` |
+
+Routing rules:
+
+- Choose Heavy when the answer feeds a decision that is hard to reverse. Choose Light when the delegate is fetching facts you will judge yourself.
+- Within Light, `luna` is the default. Switch to the OpenRouter DeepSeek tier when breadth or volume is the bottleneck rather than reasoning depth — it carries a 1M context at a small fraction of the cost.
+- `review` follows the same tiers: routine diff review is Light, release- or security-bearing review is Heavy.
+- Escalate, do not re-run flat. If a Light result is thin or self-contradictory, re-delegate the same question at Heavy rather than repeating the Light call.
+- A pinned slash command overrides this table entirely. Under `/senior-mode:codex`, `/senior-mode:luna`, or `/senior-mode:deepseek`, use that path's own pins for every call.
+- The user naming a model or effort overrides the table for as long as they say so.
+
 Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
 
 | Codex invocation | Opus 5 equivalent |
@@ -84,9 +105,8 @@ Runtime rules:
 - Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
 - Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
-- Use `--model` only when the user asks for a specific model. Otherwise let Codex use its own configured default (currently `gpt-5.6-sol`). Map `sol` / `luna` / `spark` through the helper rather than writing the concrete model name yourself.
-- Use `--profile` only to switch provider, not model. Today the only profile is `openrouter` — see OpenRouter DeepSeek Delegate below.
-- Use `--effort` only when the user asks for a specific reasoning effort. `max` and `ultra` exist on the 5.6 family; do not reach for them by default. Under `/senior-mode:luna`, `--model luna --effort max` is the session pin and goes on every call.
+- Set `--model` and `--effort` from the Default Delegate Routing tier you chose, or from the session pin when a slash command is active. Map `sol` / `luna` / `spark` through the helper aliases rather than writing the concrete model name yourself. Under `/senior-mode:luna`, `--model luna --effort max` goes on every call.
+- Use `--profile` to switch provider, not model. Today the only profile is `openrouter` — see OpenRouter DeepSeek Delegate below.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
@@ -97,19 +117,19 @@ Runtime rules:
 `/senior-mode:deepseek` keeps the entire Codex Runtime Contract and swaps only the model behind it. Codex CLI is still the agent harness; OpenRouter is the provider. Add `--profile openrouter` to every `task` and `review` call:
 
 ```bash
-node scripts/codex-companion.mjs task --wait --read-only --profile openrouter --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs task --wait --read-only --profile openrouter --effort high --prompt-file <prompt-file> --cwd <repo>
 node scripts/codex-companion.mjs review --background --profile openrouter --base main --cwd <repo>
 ```
 
 How it resolves:
 
-- `--profile openrouter` makes Codex layer `$CODEX_HOME/openrouter.config.toml` (template: `references/openrouter.config.toml`) over the base config, pinning `deepseek/deepseek-v4-flash-0731` with a 1M context window. The default Codex path is untouched.
+- `--profile openrouter` makes Codex layer `$CODEX_HOME/openrouter.config.toml` (template: `references/openrouter.config.toml`) over the base config, pinning `deepseek/deepseek-v4-flash-0731` with a 1M context window and the catalog entry from `references/openrouter-models.json`. The default Codex path is untouched.
 - The API key is read from `~/.config/openrouter/key` by the companion script and injected as `OPENROUTER_API_KEY` for profile runs only. It is never written to the profile, the job files, or `--dry-run` output. An existing `OPENROUTER_API_KEY` in the environment wins.
 - Run `setup` to confirm the path: it reports `OpenRouter: ready (profile + key present)`.
 
 Rules specific to this delegate:
 
-- Do not pass `--effort`. Reasoning effort is an OpenAI-family control; the DeepSeek profile does not take it.
+- Pair the profile with `--effort high`; that is this delegate's tier setting in Default Delegate Routing. Effort passes through OpenRouter's Responses API and the catalog entry declares `none` through `xhigh`.
 - `--model deepseek` is a convenience alias for the full slug. Prefer the profile alone — the profile already pins the model, and the alias only matters when overriding it from another profile.
 - Everything else in this skill applies unchanged: Role Boundaries, the Delegation Prompt Contract, Report Handling, the review no-auto-fix rule, and Workflow steps 5–8.
 - LazyCodex triggers are not supported on this path; they assume the OmO harness on the default Codex setup.
@@ -196,7 +216,7 @@ Codex should do:
 1. **Check whether senior-mode is warranted.** If the task is small or implementation-obvious, say this mode is unnecessary and proceed with the cheaper normal path.
 2. **Define the decision needed.** State the exact judgment fable-5 must make, the consequence of getting it wrong, and the stop condition.
 3. **Write the delegation prompt.** Include goal, scope, evidence, depth, non-goals, stop condition, and report shape.
-4. **Invoke the delegate.** Default is Codex through the helper: `task --wait --read-only` for bounded investigation, `task --write` only for explicit delegated implementation; use `--background` when appropriate, capture the job id, then use `wait <job-id>` or `watch <job-id>` rather than launching again. If the user routed to Opus, use the Agent tool mapping from Delegate Selection instead.
+4. **Pick the tier, then invoke the delegate.** Choose Heavy, Light, or Light + wide from Default Delegate Routing and say which in one line. Default runtime is Codex through the helper: `task --wait --read-only` for bounded investigation, `task --write` only for explicit delegated implementation; use `--background` when appropriate, capture the job id, then use `wait <job-id>` or `watch <job-id>` rather than launching again. If the user routed to Opus, use the Agent tool mapping from Delegate Selection instead.
 5. **Consume Codex output first.** Retrieve with `result <job-id>` when the original call did not return the report. Do not read source directly unless the report is insufficient for a correct judgment. If insufficient, ask a tighter Codex follow-up before reading code yourself.
 6. **Make the senior judgment.** Keep analysis short: decision, rationale, rejected alternatives, risk, and next action.
 7. **Write the artifact.** Produce the requested document, plan, review direction, or implementation handoff. Do not write code bodies in senior-mode.

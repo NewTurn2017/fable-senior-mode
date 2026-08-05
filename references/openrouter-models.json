@@ -1,0 +1,26 @@
+{
+  "models": [
+    {
+      "slug": "deepseek/deepseek-v4-flash-0731",
+      "display_name": "DeepSeek V4 Flash (OpenRouter)",
+      "supported_reasoning_levels": [
+        { "effort": "none", "description": "Thinking disabled" },
+        { "effort": "minimal", "description": "Minimal reasoning" },
+        { "effort": "low", "description": "Low reasoning effort" },
+        { "effort": "medium", "description": "Medium reasoning effort" },
+        { "effort": "high", "description": "High reasoning effort" },
+        { "effort": "xhigh", "description": "Max reasoning effort" }
+      ],
+      "shell_type": "default",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 1,
+      "base_instructions": "",
+      "supports_reasoning_summaries": false,
+      "support_verbosity": false,
+      "truncation_policy": { "mode": "tokens", "limit": 204800 },
+      "supports_parallel_tool_calls": true,
+      "experimental_supported_tools": []
+    }
+  ]
+}

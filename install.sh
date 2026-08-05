@@ -43,11 +43,13 @@ link_commands() {
 install_openrouter_profile() {
   local codex_home="${CODEX_HOME:-$HOME/.codex}"
   local dest="$codex_home/openrouter.config.toml"
+  mkdir -p "$codex_home"
+  # The catalog is data, not user config — keep it in sync on every run.
+  cp "$TARGET/references/openrouter-models.json" "$codex_home/openrouter-models.json"
   if [ -e "$dest" ]; then
     info "OpenRouter profile already present at $dest (left untouched)."
     return 0
   fi
-  mkdir -p "$codex_home"
   cp "$TARGET/references/openrouter.config.toml" "$dest"
   info "Installed OpenRouter profile at $dest"
   if [ ! -s "$HOME/.config/openrouter/key" ]; then

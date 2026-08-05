@@ -122,6 +122,18 @@ Once LazyCodex is in play, Claude routes the delegation through exactly one trig
 
 Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 
+## Default routing
+
+On the default path (`senior-mode` with no pinned slash command), the orchestrator is always the model you selected for the session — Opus 5 or fable-5. It never delegates judgment, and every delegation picks one of three tiers and says which one in a single line. "Let Codex use its own default model" is not an option here.
+
+| Tier | Work | Helper flags |
+| --- | --- | --- |
+| **Heavy** | Best-quality implementation, hard debugging, architecture-bearing investigation — anything expensive to get wrong | `--model sol --effort high` |
+| **Light** | Bounded, low-judgment work: focused investigation, mechanical edits, single-question evidence gathering | `--model luna --effort max` |
+| **Light + wide** | The same light work when it is bulk or wide-context: whole-repo scans, large log triage, many-file sweeps, cost-sensitive runs | `--profile openrouter --effort high` |
+
+Heavy when the answer feeds a decision that is hard to reverse; Light when the delegate is fetching facts you will judge yourself. Within Light, `luna` is the default and the DeepSeek tier takes over when breadth or volume is the bottleneck rather than reasoning depth. If a Light result comes back thin, escalate to Heavy instead of repeating the call. A pinned slash command, or the user naming a model or effort, overrides the table.
+
 ## Four delegation paths
 
 Codex is the default delegate, but explicit requests route to an OpenRouter model or to Anthropic models instead. Every path runs the same senior contract (role boundaries, delegation prompts, report handling), and Claude never switches delegates on its own.
@@ -138,8 +150,8 @@ Codex is the default delegate, but explicit requests route to an OpenRouter mode
 **DeepSeek via OpenRouter** — the agent harness is still Codex CLI; only the model changes to `deepseek/deepseek-v4-flash-0731`. It uses Codex's `--profile` layering, so your existing Codex config stays untouched. Two prerequisites:
 
 ```bash
-# 1) the profile (install.sh does this for you; manual install also works)
-cp references/openrouter.config.toml ~/.codex/openrouter.config.toml
+# 1) the profile + model catalog (install.sh does this for you; manual install also works)
+cp references/openrouter.config.toml references/openrouter-models.json ~/.codex/
 
 # 2) the API key — read from a file, not an environment variable
 mkdir -p ~/.config/openrouter
@@ -150,7 +162,7 @@ chmod 600 ~/.config/openrouter/key
 node scripts/codex-companion.mjs setup
 ```
 
-The companion script injects the key as `OPENROUTER_API_KEY` for `--profile` runs only. It is never written to the profile, the job files, or `--dry-run` output. With a 1M context at roughly two orders of magnitude less cost than the frontier delegates, it suits broad repository scans and bulk evidence gathering; for judgment calls that are expensive to get wrong, use `/senior-mode:codex`. This path does not take `--effort`.
+The companion script injects the key as `OPENROUTER_API_KEY` for `--profile` runs only. It is never written to the profile, the job files, or `--dry-run` output. With a 1M context at roughly two orders of magnitude less cost than the frontier delegates, it suits broad repository scans and bulk evidence gathering; for judgment calls that are expensive to get wrong, use `/senior-mode:codex`. This is the "Light + wide" tier in the default routing table, and it runs with `--effort high`.
 
 **Opus single agent** — investigation maps to the read-only Explore agent, implementation to a general-purpose agent (worktree isolation for risky multi-file changes). No extra install or setup.
 
@@ -170,7 +182,8 @@ senior-mode/
 ├─ SKILL.md                    # the skill definition Claude Code loads (incl. delegate routing)
 ├─ references/
 │  ├─ team-runtime.md          # /senior-mode:team agent-team runtime contract
-│  └─ openrouter.config.toml   # Codex profile template for /senior-mode:deepseek
+│  ├─ openrouter.config.toml   # Codex profile template for /senior-mode:deepseek
+│  └─ openrouter-models.json   # OpenRouter DeepSeek catalog (context + effort metadata)
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team slash command
 │  ├─ codex.md                 # /senior-mode:codex slash command

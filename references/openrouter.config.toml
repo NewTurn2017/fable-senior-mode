@@ -11,6 +11,8 @@ model = "deepseek/deepseek-v4-flash-0731"
 model_provider = "openrouter"
 model_context_window = 1000000
 model_max_output_tokens = 65536
+# Without a catalog entry Codex falls back to generic metadata and warns about it.
+model_catalog_json = "~/.codex/openrouter-models.json"
 
 [model_providers.openrouter]
 name = "OpenRouter"
