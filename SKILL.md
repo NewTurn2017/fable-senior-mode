@@ -116,6 +116,15 @@ Runtime rules:
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
 - Use `watch <job-id>` when integrating with a monitor or hook-style flow. It emits one JSON status line per change and a final `done` or `timeout` line.
 
+### Browser QA Is Not Delegated
+
+Codex runs sandboxed, so Chrome-driven QA fails there — no attachable browser, no CDP endpoint, no screenshots. This holds for every companion-script path (`/senior-mode:codex`, `:luna`, `:deepseek`).
+
+- Never ask the delegate to open Chrome, drive a browser, take screenshots, or run Playwright/Puppeteer/chrome-devtools. Put it in the prompt's **Non-goals** whenever the task touches UI.
+- Browser QA belongs to the orchestrator: run it here with the `browser-use` skill (self-hosted Docker CDP).
+- If the delegate must verify UI itself, restrict it to `browser-use` CLI calls and say so explicitly; anything else in the sandbox errors out.
+- Delegate the rest normally — code paths, network calls, DOM assertions from source, test runs. Only the live-browser step comes back to the orchestrator.
+
 ## OpenRouter DeepSeek Delegate
 
 `/senior-mode:deepseek` keeps the entire Codex Runtime Contract and swaps only the model behind it. Codex CLI is still the agent harness; OpenRouter is the provider. Add `--profile openrouter` to every `task` and `review` call:
@@ -273,3 +282,4 @@ Stop and correct course if any of these appear:
 - "Use senior-mode for this tiny fix." Use the normal cheap path.
 - "I will call `codex` directly." Use `scripts/codex-companion.mjs`.
 - "Copy this full code into the worker prompt." Give constraints and gates, not completed implementation.
+- "Let Codex screenshot the page to confirm." Chrome in the sandbox errors — QA the browser here with `browser-use`.
