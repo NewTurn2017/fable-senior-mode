@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const VALID_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 const MODEL_ALIASES = new Map([
+  ["astra", "gpt-6-astra"],
   ["sol", "gpt-5.6-sol"],
   ["luna", "gpt-5.6-luna"],
   ["spark", "gpt-5.3-codex-spark"],
@@ -26,8 +27,8 @@ function printUsage() {
   console.log([
     "Usage:",
     "  node scripts/codex-companion.mjs setup [--json] [--cwd <dir>]",
-    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
-    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|sol|luna|spark|deepseek>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
+    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|astra|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
+    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|astra|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
     "  node scripts/codex-companion.mjs status [job-id] [--wait] [--all] [--json] [--cwd <dir>]",
     "  node scripts/codex-companion.mjs wait <job-id> [--json] [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
     "  node scripts/codex-companion.mjs watch <job-id> [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
@@ -395,6 +396,9 @@ function buildCodexReviewInvocation(request) {
   if (request.model) {
     args.push("--model", request.model);
   }
+  if (request.effort) {
+    args.push("-c", `model_reasoning_effort=\"${request.effort}\"`);
+  }
   args.push("review");
   if (request.base) {
     args.push("--base", request.base);
@@ -621,7 +625,7 @@ function buildTaskRequest(argv) {
 
 function buildReviewRequest(argv) {
   const { options, positionals } = parseArgs(argv, {
-    valueOptions: ["model", "profile", "cwd", "prompt-file", "state-dir", "base", "commit", "title", "timeout-ms", "poll-interval-ms"],
+    valueOptions: ["model", "effort", "profile", "cwd", "prompt-file", "state-dir", "base", "commit", "title", "timeout-ms", "poll-interval-ms"],
     booleanOptions: ["background", "wait", "uncommitted", "dry-run", "json"],
     aliases: { m: "model", C: "cwd" }
   });
@@ -631,6 +635,7 @@ function buildReviewRequest(argv) {
   }
   return {
     ...buildCommonRequest("review", cwd, options, readPrompt(cwd, options, positionals)),
+    effort: normalizeEffort(options.effort),
     base: options.base ?? null,
     commit: options.commit ?? null,
     title: options.title ?? null

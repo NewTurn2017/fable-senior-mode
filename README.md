@@ -99,7 +99,7 @@ node scripts/codex-companion.mjs review --background --base main --cwd <repo>
 
 쓸 만한 플래그: `--prompt-file`(셸 따옴표에 안 깨지는 여러 줄 프롬프트), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
-`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `sol`(= `gpt-5.6-sol`)·`luna`(= `gpt-5.6-luna`)·`spark`(= `gpt-5.3-codex-spark`)·`deepseek`(= `deepseek/deepseek-v4-flash-0731`)를 쓸 수 있고, `--effort`는 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다. `--profile <이름>`은 Codex 프로필을 레이어링해 제공자 자체를 바꿉니다(현재는 `openrouter` 하나).
+`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `astra`(= `gpt-6-astra`)·`sol`(= `gpt-5.6-sol`)·`luna`(= `gpt-5.6-luna`)·`spark`(= `gpt-5.3-codex-spark`)·`deepseek`(= `deepseek/deepseek-v4-flash-0731`)를 쓸 수 있고, `--effort`는 `task`와 `review` 모두에서 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다. `--profile <이름>`은 Codex 프로필을 레이어링해 제공자 자체를 바꿉니다(현재는 `openrouter` 하나).
 
 작업 상태는 워크스페이스 루트의 `.senior-mode/codex/jobs/` 아래에 기록되고 gitignore됩니다.
 
@@ -143,11 +143,13 @@ Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준
 | 진입점 | 위임처 | 런타임 |
 | --- | --- | --- |
 | `/senior-mode` (기본) | Codex | 컴패니언 스크립트 |
-| `/senior-mode:codex` | Codex 고정 | 컴패니언 스크립트 (세션 내내 고정) |
+| `/senior-mode:codex` | Codex 고정 | 일반 작업은 설정된 기본 모델, 고난도 작업은 `gpt-6-astra` + `high` effort |
 | `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort 고정 | 컴패니언 스크립트 (모델·effort까지 세션 내내 고정) |
 | `/senior-mode:deepseek` | DeepSeek V4 Flash (OpenRouter) 고정 | 컴패니언 스크립트 + `--profile openrouter` |
 | "opus로 구현해줘" | Opus 5 단일 에이전트 | Claude Code 내장 Agent 툴 (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic 에이전트 팀 | 세션 메인 모델(fable-5 또는 Opus 5)이 팀 리드 |
+
+`/senior-mode:codex` 안에서 범위가 좁은 조사와 일반 구현은 model·effort 플래그를 생략해 기존 동작을 유지합니다. 최고 품질 구현, 어려운 디버깅, 아키텍처가 걸린 조사, 릴리스·보안 핵심 리뷰처럼 틀리면 비싼 고난도 작업은 같은 Codex 경로에서 `--model astra --effort high`로 실행합니다. 일반 결과가 얇거나 자기모순이면 같은 호출을 반복하지 않고 이 경로로 에스컬레이션합니다. 별도 `/senior-mode:astra` 커맨드는 만들지 않으며 다른 고정 진입점도 바꾸지 않습니다.
 
 **DeepSeek (OpenRouter)** — 에이전트 하네스는 그대로 Codex CLI이고 모델만 `deepseek/deepseek-v4-flash-0731`로 갈아끼웁니다. Codex의 `--profile` 레이어링을 쓰기 때문에 기존 Codex 설정은 건드리지 않습니다. 준비물은 두 가지:
 

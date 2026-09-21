@@ -32,13 +32,13 @@ senior-mode has four delegation paths. Codex through the companion script is the
 
 | Path | When | Runtime |
 | --- | --- | --- |
-| **Codex** (default) | No delegate named, or `/senior-mode:codex`, "코덱스로" | Companion script — Codex Runtime Contract below |
+| **Codex** (default) | No delegate named, or `/senior-mode:codex`, "코덱스로" | Companion script; `/senior-mode:codex` keeps ordinary work on the configured default and routes difficult work to Astra |
 | **Codex luna** | `/senior-mode:luna`, "luna로", "루나로" | Same companion script, with `--model luna --effort max` pinned on every call |
 | **DeepSeek (OpenRouter)** | `/senior-mode:deepseek`, "deepseek으로", "openrouter로" | Same companion script, with `--profile openrouter` pinned on every call — OpenRouter DeepSeek Delegate below |
 | **Opus single-agent** | "opus로 구현", "opus에게 위임", "opus로 조사" | `Agent` tool with `model: "opus"` — mapping below |
 | **Anthropic team** | `/senior-mode:team`, "팀 모드", "팀으로 오케스트레이션", "anthropic 모델만으로" | Agent team led by the session model — read `references/team-runtime.md` beside this file |
 
-The `/senior-mode:team`, `/senior-mode:codex`, `/senior-mode:luna`, and `/senior-mode:deepseek` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `sol`, `luna`, or `spark` is a Codex model choice (`--model sol` / `--model luna` / `--model spark` through the helper), not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
+The `/senior-mode:team`, `/senior-mode:codex`, `/senior-mode:luna`, and `/senior-mode:deepseek` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `astra`, `sol`, `luna`, or `spark` is a Codex model choice through the helper, not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
 
 ## Default Delegate Routing
 
@@ -60,6 +60,15 @@ Routing rules:
 - Escalate, do not re-run flat. If a Light result is thin or self-contradictory, re-delegate the same question at Heavy rather than repeating the Light call.
 - A pinned slash command overrides this table entirely. Under `/senior-mode:codex`, `/senior-mode:luna`, or `/senior-mode:deepseek`, use that path's own pins for every call.
 - The user naming a model or effort overrides the table for as long as they say so.
+
+### Pinned Codex difficult-work routing
+
+Under `/senior-mode:codex`, stay on the Codex companion-script path and choose between two routes:
+
+- **Ordinary work:** omit `--model` and `--effort`, preserving the classic behavior and the user's configured Codex default.
+- **Difficult work:** use `--model astra --effort high` for best-quality implementation, hard debugging, architecture-bearing investigation, release- or security-bearing review, and any work where a wrong result is expensive.
+
+State the selected route in one line. If an ordinary result is thin or self-contradictory, escalate to Astra rather than repeating the same call. A user-specified model or effort still wins. Astra is not a new delegate or slash command; it is the difficult-work model route within `/senior-mode:codex`. This rule does not change `/senior-mode:luna`, `/senior-mode:deepseek`, `/senior-mode:team`, or plain `/senior-mode` routing.
 
 Opus delegation does not use the companion script. Use Claude Code's native `Agent` tool with `model: "opus"` and put the full delegation prompt — same Delegation Prompt Contract — in the `prompt` field:
 
@@ -109,7 +118,7 @@ Runtime rules:
 - Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
 - Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
-- Set `--model` and `--effort` from the Default Delegate Routing tier you chose, or from the session pin when a slash command is active. Map `sol` / `luna` / `spark` through the helper aliases rather than writing the concrete model name yourself. Under `/senior-mode:luna`, `--model luna --effort max` goes on every call.
+- Set `--model` and `--effort` from the applicable routing rule or session pin. Map `astra` / `sol` / `luna` / `spark` through the helper aliases rather than writing the concrete model name yourself. `--effort` is supported on both `task` and `review`; under `/senior-mode:luna`, `--model luna --effort max` goes on every call.
 - Use `--profile` to switch provider, not model. Today the only profile is `openrouter` — see OpenRouter DeepSeek Delegate below.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.

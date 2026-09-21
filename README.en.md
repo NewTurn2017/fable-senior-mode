@@ -99,7 +99,7 @@ Every background job returns a job id. Use it instead of launching a second run:
 
 Useful flags: `--prompt-file` (multi-line prompts that survive shell quoting), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
 
-Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `sol` (= `gpt-5.6-sol`), `luna` (= `gpt-5.6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4-flash-0731`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
+Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `astra` (= `gpt-6-astra`), `sol` (= `gpt-5.6-sol`), `luna` (= `gpt-5.6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4-flash-0731`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`, on both `task` and `review`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
 
 Job state is written under `.senior-mode/codex/jobs/` in the workspace root and is gitignored.
 
@@ -143,11 +143,13 @@ Codex is the default delegate, but explicit requests route to an OpenRouter mode
 | Entry point | Delegate | Runtime |
 | --- | --- | --- |
 | `/senior-mode` (default) | Codex | companion script |
-| `/senior-mode:codex` | Codex, pinned | companion script (pinned for the session) |
+| `/senior-mode:codex` | Codex, pinned | configured default for ordinary work; `gpt-6-astra` + `high` effort for difficult work |
 | `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort, pinned | companion script (model and effort pinned for the session) |
 | `/senior-mode:deepseek` | DeepSeek V4 Flash via OpenRouter, pinned | companion script + `--profile openrouter` |
 | "implement this with opus" | Opus 5 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 5) as team lead |
+
+Inside `/senior-mode:codex`, ordinary focused investigation and routine implementation keep the classic behavior by omitting model and effort flags. Difficult work — best-quality implementation, hard debugging, architecture-bearing investigation, release- or security-bearing review, or anything expensive to get wrong — stays on the same Codex path but runs with `--model astra --effort high`. A thin or self-contradictory ordinary result escalates to this route instead of being repeated. This does not add a `/senior-mode:astra` command or change any other pinned entry point.
 
 **DeepSeek via OpenRouter** — the agent harness is still Codex CLI; only the model changes to `deepseek/deepseek-v4-flash-0731`. It uses Codex's `--profile` layering, so your existing Codex config stays untouched. Two prerequisites:
 
