@@ -11,6 +11,9 @@
 set -euo pipefail
 
 REPO="NewTurn2017/fable-senior-mode"
+# Pinned commit for integrity verification (CWE-494). Override via SENIOR_MODE_REF
+# only if you have independently verified the commit you are pinning to.
+REPO_REF="${SENIOR_MODE_REF:-9d80f41f815d54a5b4e698b8b895c7721090dcae}"
 SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 TARGET="$SKILLS_DIR/senior-mode"
 
@@ -65,13 +68,21 @@ if [ -L "$TARGET" ]; then
   exit 0
 elif [ -d "$TARGET/.git" ]; then
   info "Updating existing install at $TARGET"
-  git -C "$TARGET" pull --ff-only
+  git -C "$TARGET" fetch --quiet --depth 1 origin "$REPO_REF"
+  git -C "$TARGET" checkout --quiet "$REPO_REF"
 elif [ -e "$TARGET" ]; then
   fail "$TARGET already exists but is not a git checkout. Move it aside and re-run."
 else
   info "Cloning $REPO into $TARGET"
-  git clone --depth 1 "https://github.com/$REPO.git" "$TARGET"
+  git init --quiet "$TARGET"
+  git -C "$TARGET" remote add origin "https://github.com/$REPO.git"
+  git -C "$TARGET" fetch --quiet --depth 1 origin "$REPO_REF"
+  git -C "$TARGET" checkout --quiet "$REPO_REF"
 fi
+
+# Verify the checked-out commit matches the pinned reference before proceeding.
+ACTUAL_REF="$(git -C "$TARGET" rev-parse HEAD)"
+[ "$ACTUAL_REF" = "$REPO_REF" ] || fail "Integrity check failed: expected commit $REPO_REF but got $ACTUAL_REF."
 
 chmod +x "$TARGET/scripts/codex-companion.mjs" 2>/dev/null || true
 link_commands
