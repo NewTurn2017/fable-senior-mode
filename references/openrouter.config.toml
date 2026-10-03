@@ -7,7 +7,7 @@
 # The API key is NOT stored here. codex-companion.mjs reads ~/.config/openrouter/key
 # and injects it as OPENROUTER_API_KEY for profile runs.
 
-model = "deepseek/deepseek-v4-flash-0731"
+model = "deepseek/deepseek-v4.1-flash"
 model_provider = "openrouter"
 model_context_window = 1000000
 model_max_output_tokens = 65536

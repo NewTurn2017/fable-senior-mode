@@ -50,6 +50,17 @@ test("sol alias selects gpt-6.1-sol for the heavy worker tier", () => {
   ]);
 });
 
+test("luna alias selects gpt-6-luna at max effort", () => {
+  const invocation = dryRun([
+    "task", "--dry-run", "--read-only", "--model", "luna", "--effort", "max",
+    "--cwd", ROOT, "gather the bounded evidence"
+  ]);
+
+  assert.deepEqual(invocation.args.slice(6, 10), [
+    "--model", "gpt-6-luna", "-c", 'model_reasoning_effort="max"'
+  ]);
+});
+
 test("omitting --model leaves Codex on its configured default", () => {
   const invocation = dryRun([
     "task", "--dry-run", "--read-only", "--cwd", ROOT, "inspect the bounded issue"

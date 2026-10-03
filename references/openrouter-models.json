@@ -1,8 +1,8 @@
 {
   "models": [
     {
-      "slug": "deepseek/deepseek-v4-flash-0731",
-      "display_name": "DeepSeek V4 Flash (OpenRouter)",
+      "slug": "deepseek/deepseek-v4.1-flash",
+      "display_name": "DeepSeek V4.1 Flash (OpenRouter)",
       "supported_reasoning_levels": [
         { "effort": "none", "description": "Thinking disabled" },
         { "effort": "minimal", "description": "Minimal reasoning" },

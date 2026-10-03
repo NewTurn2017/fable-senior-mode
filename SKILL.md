@@ -161,7 +161,7 @@ node scripts/codex-companion.mjs review --wait --profile openrouter --base main 
 
 How it resolves:
 
-- `--profile openrouter` makes Codex layer `$CODEX_HOME/openrouter.config.toml` (template: `references/openrouter.config.toml`) over the base config, pinning `deepseek/deepseek-v4-flash-0731` with a 1M context window and the catalog entry from `references/openrouter-models.json`. The default Codex path is untouched.
+- `--profile openrouter` makes Codex layer `$CODEX_HOME/openrouter.config.toml` (template: `references/openrouter.config.toml`) over the base config, pinning `deepseek/deepseek-v4.1-flash` with a 1M context window and the catalog entry from `references/openrouter-models.json`. The default Codex path is untouched.
 - The API key is read from `~/.config/openrouter/key` by the companion script and injected as `OPENROUTER_API_KEY` for profile runs only. It is never written to the profile, the job files, or `--dry-run` output. An existing `OPENROUTER_API_KEY` in the environment wins.
 - Run `setup` to confirm the path: it reports `OpenRouter: ready (profile + key present)`.
 
@@ -171,7 +171,7 @@ Rules specific to this delegate:
 - `--model deepseek` is a convenience alias for the full slug. Prefer the profile alone — the profile already pins the model, and the alias only matters when overriding it from another profile.
 - Everything else in this skill applies unchanged: Role Boundaries, the Delegation Prompt Contract, Report Handling, the review no-auto-fix rule, and Workflow steps 5–8.
 - LazyCodex triggers are not supported on this path; they assume the OmO harness on the default Codex setup.
-- This is a cost/context tradeoff, not a capability upgrade. DeepSeek V4 Flash costs roughly two orders of magnitude less than the frontier delegates and holds 1M tokens, which suits broad repository scans and bulk evidence gathering. For work where a wrong judgment is expensive, say so in one line and offer `/senior-mode:codex` instead.
+- This is a cost/context tradeoff, not a capability upgrade. DeepSeek V4.1 Flash costs roughly two orders of magnitude less than the frontier delegates and holds 1M tokens, which suits broad repository scans and bulk evidence gathering. For work where a wrong judgment is expensive, say so in one line and offer `/senior-mode:codex` instead.
 
 ## LazyCodex Delegation
 

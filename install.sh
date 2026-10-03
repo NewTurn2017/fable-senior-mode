@@ -88,4 +88,4 @@ fi
 info "Installed at $TARGET"
 echo
 echo "Next: open Claude Code and invoke the skill with 'senior-mode' or '시니어 모드'."
-echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:luna (Codex gpt-5.6-luna, max effort) · /senior-mode:deepseek (DeepSeek V4 Flash via OpenRouter) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."
+echo "Pinned modes: /senior-mode:codex (Codex delegate) · /senior-mode:luna (Codex gpt-6-luna, max effort) · /senior-mode:deepseek (DeepSeek V4.1 Flash via OpenRouter) · /senior-mode:team (Anthropic agent team; needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)."

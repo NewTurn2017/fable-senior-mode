@@ -105,7 +105,7 @@ The parent owns **launch → monitor → read report → judge/verify → ack**.
 
 The helper cannot wake a closed parent session. Native notifications depend on the host; persistent records and pending discovery provide recovery. Follow [SKILL.md's Parent Completion Contract](SKILL.md#parent-completion-contract) for the full procedure.
 
-Omit `--model` and Codex uses its own configured default (currently `gpt-6.1-sol`). Short aliases are `astra` (= `gpt-6-astra`), `sol` (= `gpt-6.1-sol`), `luna` (= `gpt-5.6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4-flash-0731`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`, on both `task` and `review`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
+Omit `--model` and Codex uses its own configured default (currently `gpt-6.1-sol`). Short aliases are `astra` (= `gpt-6-astra`), `sol` (= `gpt-6.1-sol`), `luna` (= `gpt-6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4.1-flash`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`, on both `task` and `review`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
 
 Job state is written under `.senior-mode/codex/jobs/` in the workspace root and is gitignored.
 
@@ -150,14 +150,14 @@ Codex is the default delegate, but explicit requests route to an OpenRouter mode
 | --- | --- | --- |
 | `/senior-mode` (default) | Codex | companion script |
 | `/senior-mode:codex` | Codex, pinned | primary worker `gpt-6.1-sol` for ordinary work; `gpt-6-astra` + `high` effort for difficult work |
-| `/senior-mode:luna` | Codex `gpt-5.6-luna` + `max` effort, pinned | companion script (model and effort pinned for the session) |
-| `/senior-mode:deepseek` | DeepSeek V4 Flash via OpenRouter, pinned | companion script + `--profile openrouter` |
+| `/senior-mode:luna` | Codex `gpt-6-luna` + `max` effort, pinned | companion script (model and effort pinned for the session) |
+| `/senior-mode:deepseek` | DeepSeek V4.1 Flash via OpenRouter, pinned | companion script + `--profile openrouter` |
 | "implement this with opus" | Opus 5 single agent | Claude Code's built-in Agent tool (`model: "opus"`) |
 | `/senior-mode:team` | Anthropic agent team | session main model (fable-5 or Opus 5) as team lead |
 
 Inside `/senior-mode:codex`, ordinary focused investigation and routine implementation run on the primary worker with `--model sol` (`gpt-6.1-sol`), omitting `--effort` so Codex's configured effort applies. Difficult work — best-quality implementation, hard debugging, architecture-bearing investigation, release- or security-bearing review, or anything expensive to get wrong — stays on the same Codex path but runs with `--model astra --effort high`. A thin or self-contradictory ordinary result escalates to this route instead of being repeated. This does not add a `/senior-mode:astra` command or change any other pinned entry point.
 
-**DeepSeek via OpenRouter** — the agent harness is still Codex CLI; only the model changes to `deepseek/deepseek-v4-flash-0731`. It uses Codex's `--profile` layering, so your existing Codex config stays untouched. Two prerequisites:
+**DeepSeek via OpenRouter** — the agent harness is still Codex CLI; only the model changes to `deepseek/deepseek-v4.1-flash`. It uses Codex's `--profile` layering, so your existing Codex config stays untouched. Two prerequisites:
 
 ```bash
 # 1) the profile + model catalog (install.sh does this for you; manual install also works)
@@ -197,8 +197,8 @@ senior-mode/
 ├─ commands/
 │  ├─ team.md                  # /senior-mode:team slash command
 │  ├─ codex.md                 # /senior-mode:codex slash command
-│  ├─ luna.md                  # /senior-mode:luna slash command (gpt-5.6-luna, max effort)
-│  └─ deepseek.md              # /senior-mode:deepseek slash command (OpenRouter DeepSeek V4 Flash)
+│  ├─ luna.md                  # /senior-mode:luna slash command (gpt-6-luna, max effort)
+│  └─ deepseek.md              # /senior-mode:deepseek slash command (OpenRouter DeepSeek V4.1 Flash)
 ├─ scripts/
 │  └─ codex-companion.mjs      # dependency-free Codex runtime boundary
 ├─ docs/
