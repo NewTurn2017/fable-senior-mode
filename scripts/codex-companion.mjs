@@ -12,7 +12,7 @@ const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const VALID_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 const MODEL_ALIASES = new Map([
   ["astra", "gpt-6-astra"],
-  ["sol", "gpt-5.6-sol"],
+  ["sol", "gpt-6.1-sol"],
   ["luna", "gpt-5.6-luna"],
   ["spark", "gpt-5.3-codex-spark"],
   ["deepseek", "deepseek/deepseek-v4-flash-0731"]

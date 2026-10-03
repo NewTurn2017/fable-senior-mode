@@ -39,7 +39,18 @@ test("difficult review accepts the astra model and high effort", () => {
   ]);
 });
 
-test("ordinary Codex tasks remain unpinned", () => {
+test("sol alias selects gpt-6.1-sol for the heavy worker tier", () => {
+  const invocation = dryRun([
+    "task", "--dry-run", "--read-only", "--model", "sol", "--effort", "high",
+    "--cwd", ROOT, "implement the heavy change"
+  ]);
+
+  assert.deepEqual(invocation.args.slice(6, 10), [
+    "--model", "gpt-6.1-sol", "-c", 'model_reasoning_effort="high"'
+  ]);
+});
+
+test("omitting --model leaves Codex on its configured default", () => {
   const invocation = dryRun([
     "task", "--dry-run", "--read-only", "--cwd", ROOT, "inspect the bounded issue"
   ]);

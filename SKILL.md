@@ -65,7 +65,7 @@ Routing rules:
 
 Under `/senior-mode:codex`, stay on the Codex companion-script path and choose between two routes:
 
-- **Ordinary work:** omit `--model` and `--effort`, preserving the classic behavior and the user's configured Codex default.
+- **Ordinary work:** use `--model sol` (`gpt-6.1-sol`, the primary worker) and omit `--effort`, so the user's configured Codex effort applies.
 - **Difficult work:** use `--model astra --effort high` for best-quality implementation, hard debugging, architecture-bearing investigation, release- or security-bearing review, and any work where a wrong result is expensive.
 
 State the selected route in one line. If an ordinary result is thin or self-contradictory, escalate to Astra rather than repeating the same call. A user-specified model or effort still wins. Astra is not a new delegate or slash command; it is the difficult-work model route within `/senior-mode:codex`. This rule does not change `/senior-mode:luna`, `/senior-mode:deepseek`, `/senior-mode:team`, or plain `/senior-mode` routing.
