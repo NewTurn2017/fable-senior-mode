@@ -14,7 +14,6 @@ const MODEL_ALIASES = new Map([
   ["astra", "gpt-6-astra"],
   ["sol", "gpt-6.1-sol"],
   ["luna", "gpt-6-luna"],
-  ["spark", "gpt-5.3-codex-spark"],
   ["deepseek", "deepseek/deepseek-v4.1-flash"]
 ]);
 const OPENROUTER_KEY_FILE = path.join(os.homedir(), ".config", "openrouter", "key");
@@ -28,8 +27,8 @@ function printUsage() {
   console.log([
     "Usage:",
     "  node scripts/codex-companion.mjs setup [--json] [--cwd <dir>]",
-    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|astra|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
-    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|astra|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
+    "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|astra|sol|luna|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
+    "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|astra|sol|luna|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
     "  node scripts/codex-companion.mjs status [job-id] [--wait] [--all|--pending] [--json] [--cwd <dir>]",
     "  node scripts/codex-companion.mjs wait <job-id> [--json] [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
     "  node scripts/codex-companion.mjs watch <job-id> [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",

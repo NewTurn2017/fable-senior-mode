@@ -105,7 +105,7 @@ node scripts/codex-companion.mjs review --wait --base main --cwd <repo>
 
 부모 세션이 닫히면 helper가 직접 깨울 수는 없습니다. 부모 도구의 알림 지원에 의존하므로 기록과 미회수 조회를 복구 경로로 씁니다. 자세한 절차는 [SKILL.md의 Parent Completion Contract](SKILL.md#parent-completion-contract)를 따릅니다.
 
-`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-6.1-sol`)을 그대로 씁니다. 짧은 별칭 `astra`(= `gpt-6-astra`)·`sol`(= `gpt-6.1-sol`)·`luna`(= `gpt-6-luna`)·`spark`(= `gpt-5.3-codex-spark`)·`deepseek`(= `deepseek/deepseek-v4.1-flash`)를 쓸 수 있고, `--effort`는 `task`와 `review` 모두에서 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다. `--profile <이름>`은 Codex 프로필을 레이어링해 제공자 자체를 바꿉니다(현재는 `openrouter` 하나).
+`--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-6.1-sol`)을 그대로 씁니다. 짧은 별칭 `astra`(= `gpt-6-astra`)·`sol`(= `gpt-6.1-sol`)·`luna`(= `gpt-6-luna`)·`deepseek`(= `deepseek/deepseek-v4.1-flash`)를 쓸 수 있고, `--effort`는 `task`와 `review` 모두에서 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다. `--profile <이름>`은 Codex 프로필을 레이어링해 제공자 자체를 바꿉니다(현재는 `openrouter` 하나).
 
 작업 상태는 워크스페이스 루트의 `.senior-mode/codex/jobs/` 아래에 기록되고 gitignore됩니다.
 

@@ -38,7 +38,7 @@ senior-mode has four delegation paths. Codex through the companion script is the
 | **Opus single-agent** | "opus로 구현", "opus에게 위임", "opus로 조사" | `Agent` tool with `model: "opus"` — mapping below |
 | **Anthropic team** | `/senior-mode:team`, "팀 모드", "팀으로 오케스트레이션", "anthropic 모델만으로" | Agent team led by the session model — read `references/team-runtime.md` beside this file |
 
-The `/senior-mode:team`, `/senior-mode:codex`, `/senior-mode:luna`, and `/senior-mode:deepseek` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `astra`, `sol`, `luna`, or `spark` is a Codex model choice through the helper, not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
+The `/senior-mode:team`, `/senior-mode:codex`, `/senior-mode:luna`, and `/senior-mode:deepseek` slash commands (installed under `~/.claude/commands/senior-mode/`) pin a path for the session; a pinned path stays pinned until the user explicitly switches. Asking for `astra`, `sol`, or `luna` is a Codex model choice through the helper, not a delegate switch — `/senior-mode:luna` additionally pins `--effort max`.
 
 ## Default Delegate Routing
 
@@ -120,7 +120,7 @@ Runtime rules:
 - Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
 - Use helper `--wait` for both short and long jobs. For long jobs, run that command in the **parent's native background tool** (Claude Code `Bash` with `run_in_background: true`) and follow the Parent Completion Contract. Helper `--background` only detaches; it has no parent notification transport.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
-- Set `--model` and `--effort` from the applicable routing rule or session pin. Map `astra` / `sol` / `luna` / `spark` through the helper aliases rather than writing the concrete model name yourself. `--effort` is supported on both `task` and `review`; under `/senior-mode:luna`, `--model luna --effort max` goes on every call.
+- Set `--model` and `--effort` from the applicable routing rule or session pin. Map `astra` / `sol` / `luna` through the helper aliases rather than writing the concrete model name yourself. `--effort` is supported on both `task` and `review`; under `/senior-mode:luna`, `--model luna --effort max` goes on every call.
 - Use `--profile` to switch provider, not model. Today the only profile is `openrouter` — see OpenRouter DeepSeek Delegate below.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.

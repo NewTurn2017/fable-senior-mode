@@ -105,7 +105,7 @@ The parent owns **launch → monitor → read report → judge/verify → ack**.
 
 The helper cannot wake a closed parent session. Native notifications depend on the host; persistent records and pending discovery provide recovery. Follow [SKILL.md's Parent Completion Contract](SKILL.md#parent-completion-contract) for the full procedure.
 
-Omit `--model` and Codex uses its own configured default (currently `gpt-6.1-sol`). Short aliases are `astra` (= `gpt-6-astra`), `sol` (= `gpt-6.1-sol`), `luna` (= `gpt-6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4.1-flash`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`, on both `task` and `review`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
+Omit `--model` and Codex uses its own configured default (currently `gpt-6.1-sol`). Short aliases are `astra` (= `gpt-6-astra`), `sol` (= `gpt-6.1-sol`), `luna` (= `gpt-6-luna`), and `deepseek` (= `deepseek/deepseek-v4.1-flash`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`, on both `task` and `review`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
 
 Job state is written under `.senior-mode/codex/jobs/` in the workspace root and is gitignored.
 
