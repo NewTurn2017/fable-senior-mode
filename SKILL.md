@@ -75,7 +75,7 @@ Opus delegation does not use the companion script. Use Claude Code's native `Age
 | Codex invocation | Opus 5 equivalent |
 | --- | --- |
 | `task --wait --read-only` | `Agent` with `subagent_type: "Explore"`, `model: "opus"`, `run_in_background: false` |
-| `task --background --read-only` | Same, default background run; the completion notification replaces `wait`/`watch` |
+| Parent-managed background `task --wait --read-only` | Same, native background Agent run; its completion notification replaces the helper monitor |
 | `task --write` | `Agent` with `subagent_type: "general-purpose"`, `model: "opus"`; add `isolation: "worktree"` for risky multi-file changes |
 | `review` | `Agent` with `subagent_type: "general-purpose"`, `model: "opus"`, prompt stating review-only, no edits |
 
@@ -83,6 +83,7 @@ Opus runtime rules:
 
 - `Explore` is read-only by tool restriction. If investigation must run commands, use `general-purpose` and state "investigation only — do not modify any file" in the prompt.
 - Job tracking is native: background agents notify on completion, and `SendMessage` continues the same agent with its context intact instead of starting a new one.
+- These native Agent notifications do not apply to detached Codex companion jobs. Those follow the Parent Completion Contract below.
 - Every other rule in this skill applies unchanged to an Opus delegate: Role Boundaries, Report Handling, the review no-auto-fix rule, and Workflow steps 5–8.
 - LazyCodex triggers (`ulw`, `$ulw-plan`, `$start-work`, `$ulw-loop`, `$ulw-research`) are Codex-only. If the user wants that flow on Opus, run a two-stage plan → user approval → implement flow with two Opus agents instead.
 
@@ -101,13 +102,14 @@ Use the helper for every Codex interaction:
 ```bash
 node scripts/codex-companion.mjs setup
 node scripts/codex-companion.mjs task --wait --read-only --prompt-file <prompt-file> --cwd <repo>
-node scripts/codex-companion.mjs task --background --read-only --prompt-file <prompt-file> --cwd <repo>
-node scripts/codex-companion.mjs task --write --prompt-file <prompt-file> --cwd <repo>
-node scripts/codex-companion.mjs review --background --base main --cwd <repo>
+node scripts/codex-companion.mjs task --wait --write --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs review --wait --base main --cwd <repo>
 node scripts/codex-companion.mjs status <job-id> --cwd <repo>
 node scripts/codex-companion.mjs wait <job-id> --cwd <repo>
 node scripts/codex-companion.mjs watch <job-id> --cwd <repo>
 node scripts/codex-companion.mjs result <job-id> --cwd <repo>
+node scripts/codex-companion.mjs ack <job-id> --cwd <repo>
+node scripts/codex-companion.mjs status --pending --json --cwd <repo>
 node scripts/codex-companion.mjs cancel <job-id> --cwd <repo>
 ```
 
@@ -116,14 +118,28 @@ Runtime rules:
 - Run `setup` before first use when Codex readiness is unknown.
 - Use `task --read-only` for investigation, diagnosis, architecture mapping, and prompt validation.
 - Use `task --write` only when the user has explicitly moved from senior judgment to delegated implementation.
-- Prefer `--wait` for bounded jobs where Claude should receive the final report in the same tool call. Prefer `--background` for open-ended, multi-step, or likely slow Codex work; immediately record the returned job id and use `wait`, `status`, `watch`, `result`, and `cancel` through the same helper.
+- Use helper `--wait` for both short and long jobs. For long jobs, run that command in the **parent's native background tool** (Claude Code `Bash` with `run_in_background: true`) and follow the Parent Completion Contract. Helper `--background` only detaches; it has no parent notification transport.
 - Use `review` for Codex code review. After review output, do not auto-fix findings; ask which findings should be acted on.
 - Set `--model` and `--effort` from the applicable routing rule or session pin. Map `astra` / `sol` / `luna` / `spark` through the helper aliases rather than writing the concrete model name yourself. `--effort` is supported on both `task` and `review`; under `/senior-mode:luna`, `--model luna --effort max` goes on every call.
 - Use `--profile` to switch provider, not model. Today the only profile is `openrouter` — see OpenRouter DeepSeek Delegate below.
 - Use `--prompt-file` for multi-line prompts so shell quoting never changes the task.
 - Do not inspect the repository yourself merely to make the Codex prompt more detailed. Prompt from the decision need, known paths, and the user's request.
 - Never start a second Codex run merely because output was not received. First run `status <job-id>` and `result <job-id>` for the original job id; if it is `stale`, read the stored output and decide from that evidence.
-- Use `watch <job-id>` when integrating with a monitor or hook-style flow. It emits one JSON status line per change and a final `done` or `timeout` line.
+- `watch <job-id>` emits JSON status events and a final `done` or `timeout`. `done` means terminal, including failure/cancellation/stale; check `status`, `success`, and exit code, then read `result`. `watch` is not itself a hook or notification subscription.
+
+### Parent Completion Contract
+
+The parent owns **launch → monitor → read report → judge/verify → acknowledge**. A launcher exit, a terminal job, and a consumed report are different events. Never treat a completion marker in model output as a transport notification or proof of success.
+
+1. **Recover first.** On entry/resume/compaction, run `status --pending --json --cwd <repo>` (with the original `--state-dir` if customized). It lists all running and unacknowledged terminal jobs, including older ones. Match IDs against the current task; do not adopt, cancel, or acknowledge another session's jobs just because they share a repo.
+2. **Launch with a monitor.** Short work: run `task/review --wait` normally. Long work: run the same `--wait` command through the main parent's native background tool. Record the helper job ID from its startup output, absolute cwd/state directory, parent background task ID/output path, and purpose in the parent's task record; preserve these in any handoff. Keep model/profile pins unchanged. Do not use shell `&`/`nohup` as a substitute for the parent's task tool.
+3. **Attach immediately if detached.** When helper `--background` is needed, use `--json`, capture `job.id` and `stateDir`, then launch its returned `waitCommand` in the parent's background tool before moving on. `notification: "none"` is literal. Never background only the detached launcher: its tool completion means launch succeeded, not that Codex finished.
+4. **Own the wait.** While the monitor runs, do independent work. Use the host's completion notification and output retrieval tool (Claude Code `TaskOutput` when available) for its recorded task ID. If there is no independent work, actively await that task. If native background tools are unavailable/disabled, use bounded helper `wait` calls. A timeout/exit 124 ends only the wait: reattach to the **same** job using the returned `waitCommand`; do not relaunch Codex. Re-arm a lost/expired monitor before yielding. In non-interactive hosts, consume the report before returning, since host background tasks may end with the parent run.
+5. **Consume the terminal report.** Read the report returned by `wait`, or `result <job-id>` after a notification/`watch` event. A task ID or `done` event alone is insufficient. Inspect status, exit code, stdout, stderr, requested evidence, and any report marker. Missing/empty/truncated reports, `failed`, `cancelled`, or `stale` require an explicit disposition; they are not success. Retrieve stored output if the host truncated it. Do not rerun merely because a notification is missing.
+6. **Acknowledge after judgment.** Once the report is read and integrated (or a failure and its next action are recorded), run `ack <job-id>`. This saves a separate receipt without deleting logs; `wait`, `watch`, and `result` never acknowledge implicitly. `ack` is a parent assertion of handling, not a success flag; it rejects running jobs and is safe to repeat.
+7. **Close the loop.** Before claiming completion, check `status --pending --json` again and account for every job owned by this task. Do not claim done while one is running or unconsumed. If the user explicitly pauses, leave a concrete handoff with IDs, paths, status, and recovery command; do not acknowledge unread output.
+
+The helper cannot wake a closed parent session. Native task notifications depend on the host; the persistent pending/ack record is the recovery path, not an installed hook. See [Claude Code background command behavior](https://code.claude.com/docs/en/tools-reference#background-commands).
 
 ### Browser QA Is Not Delegated
 
@@ -140,7 +156,7 @@ Codex runs sandboxed, so Chrome-driven QA fails there — no attachable browser,
 
 ```bash
 node scripts/codex-companion.mjs task --wait --read-only --profile openrouter --effort high --prompt-file <prompt-file> --cwd <repo>
-node scripts/codex-companion.mjs review --background --profile openrouter --base main --cwd <repo>
+node scripts/codex-companion.mjs review --wait --profile openrouter --base main --cwd <repo>
 ```
 
 How it resolves:
@@ -165,7 +181,7 @@ Use LazyCodex only when one of these is true:
 
 - The user explicitly asks for LazyCodex, OmO, ultrawork, `ulw`, `$ulw-loop`, `$ulw-plan`, `$ulw-research`, or `$start-work`.
 - The delegated work is broad enough that Codex should own an internal plan/execute/verify loop, not just return a bounded evidence report.
-- A previous plain Codex task repeatedly loses completion handoff and the work would benefit from LazyCodex's Stop-hook reinjection and `ORCHESTRATION COMPLETE` style completion marker.
+- The work benefits from Codex-side verification gates and an `ORCHESTRATION COMPLETE` report marker. Lost parent notifications alone are not a reason to switch harnesses: repair the parent monitor using the Parent Completion Contract.
 
 Setup rules:
 
@@ -184,8 +200,8 @@ Once LazyCodex is chosen, fable-5 must select exactly ONE trigger before writing
 | Bounded multi-file implementation with little judgment left | `ulw` | single `task --write`; brief carries success criteria + QA scenarios |
 | Large or ambiguous work that needs a detailed plan first | `$ulw-plan` | stage 1: `task --read-only`; plan artifacts only, state that implementation is forbidden |
 | Executing a plan fable-5 reviewed and the user approved | `$start-work` | stage 2: `task --write`; name the exact `.omo/plans/<slug>.md` path |
-| Long-running multi-goal work needing evidence gates | `$ulw-loop` | `task --write --background`; track with `watch`/`status` |
-| Exhaustive multi-source research (codebase + web + docs + OSS) too broad for a bounded evidence report | `$ulw-research` | `task --read-only --background`; track with `watch`/`status` |
+| Long-running multi-goal work needing evidence gates | `$ulw-loop` | `task --write --wait` in the parent's background tool; follow Parent Completion Contract |
+| Exhaustive multi-source research (codebase + web + docs + OSS) too broad for a bounded evidence report | `$ulw-research` | `task --read-only --wait` in the parent's background tool; follow Parent Completion Contract |
 
 When unsure, start with `$ulw-plan`: a plan is reversible, a wrong implementation is not.
 
@@ -196,7 +212,7 @@ A LazyCodex brief extends the Delegation Prompt Contract with:
 - **Trigger line:** the chosen trigger alone on the first line of the prompt file, so word-bounded matching always fires.
 - **Goal + success criteria:** verifiable outcomes that OmO's Manual-QA channels can capture.
 - **Must-NOT:** files, directories, and scope Codex must not touch.
-- **Completion marker:** the exact final line the report must end with, so `wait`/`watch` completion is unambiguous.
+- **Completion marker:** the exact final line the report must end with for the parent to validate report completeness. `wait`/`watch` determine terminal state from the process, not this text.
 - **No detailed plan:** fable-5 does not write task breakdowns or per-file change specs — that is the OmO planner's job, grounded in its own repository exploration. The brief carries goals, constraints, and gates only.
 
 ### Two-Stage Flow (`$ulw-plan` → `$start-work`)
@@ -238,11 +254,11 @@ Codex should do:
 1. **Check whether senior-mode is warranted.** If the task is small or implementation-obvious, say this mode is unnecessary and proceed with the cheaper normal path.
 2. **Define the decision needed.** State the exact judgment fable-5 must make, the consequence of getting it wrong, and the stop condition.
 3. **Write the delegation prompt.** Include goal, scope, evidence, depth, non-goals, stop condition, and report shape.
-4. **Pick the tier, then invoke the delegate.** Choose Heavy, Light, or Light + wide from Default Delegate Routing and say which in one line. Default runtime is Codex through the helper: `task --wait --read-only` for bounded investigation, `task --write` only for explicit delegated implementation; use `--background` when appropriate, capture the job id, then use `wait <job-id>` or `watch <job-id>` rather than launching again. If the user routed to Opus, use the Agent tool mapping from Delegate Selection instead.
-5. **Consume Codex output first.** Retrieve with `result <job-id>` when the original call did not return the report. Do not read source directly unless the report is insufficient for a correct judgment. If insufficient, ask a tighter Codex follow-up before reading code yourself.
+4. **Pick the tier, then invoke the delegate.** Choose the applicable tier or session pin and state it. For Codex, follow the Parent Completion Contract with `task/review --wait`; write access requires explicit delegated implementation. Long work uses the parent's background tool. If routed to Opus, use its native Agent mapping instead.
+5. **Consume Codex output first.** Read the terminal report from `wait` or `result <job-id>`; a launcher exit or notification is insufficient. Do not read source directly unless the report is insufficient for a correct judgment. If insufficient, ask a tighter Codex follow-up before reading code yourself.
 6. **Make the senior judgment.** Keep analysis short: decision, rationale, rejected alternatives, risk, and next action.
 7. **Write the artifact.** Produce the requested document, plan, review direction, or implementation handoff. Do not write code bodies in senior-mode.
-8. **Verify delegated changes.** When Codex made changes, run the focused test, command, or scenario that covers the behavior before presenting completion.
+8. **Verify and close delivery.** When Codex made changes, run the focused test, command, or scenario that covers the behavior. Acknowledge handled Codex reports with `ack <job-id>` and check owned pending jobs before presenting completion.
 
 ## Delegation Prompt Contract
 

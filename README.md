@@ -75,29 +75,35 @@ node scripts/codex-companion.mjs setup
 # 범위가 정해진 조사 — 보고서가 올 때까지 대기
 node scripts/codex-companion.mjs task --wait --read-only --prompt-file <prompt-file> --cwd <repo>
 
-# 열린 작업 — 백그라운드로 시작한 뒤 추적
-node scripts/codex-companion.mjs task --background --read-only --prompt-file <prompt-file> --cwd <repo>
+# 긴 작업 — 이 --wait 명령을 부모 Bash 도구의 run_in_background: true로 실행
+node scripts/codex-companion.mjs task --wait --read-only --prompt-file <prompt-file> --cwd <repo>
 
 # 명시적으로 맡기는 구현 (정말 그럴 때만)
-node scripts/codex-companion.mjs task --write --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs task --wait --write --prompt-file <prompt-file> --cwd <repo>
 
 # 베이스 브랜치 대비 코드 리뷰
-node scripts/codex-companion.mjs review --background --base main --cwd <repo>
+node scripts/codex-companion.mjs review --wait --base main --cwd <repo>
 ```
 
 ### 백그라운드 작업 추적
 
-백그라운드 작업은 매번 job id를 돌려줍니다. 같은 작업을 다시 띄우지 말고 이 id를 쓰세요.
+**helper의 `--background` 자체에는 부모에게 완료를 알리는 기능이 없습니다.** 긴 작업은 `--wait` 명령을 부모의 백그라운드 도구에서 실행해야 그 도구가 실제 대기 완료를 추적합니다. 부모는 helper job id와 부모 도구 task id·출력 경로, cwd·state-dir, 작업 목적을 함께 기록합니다. helper `--background --json`을 썼다면 반환된 `waitCommand`를 즉시 부모의 백그라운드 도구에 연결하세요. 같은 Codex 작업을 다시 실행하면 안 됩니다.
 
 | 명령 | 하는 일 |
 | --- | --- |
 | `status <job-id> --cwd <repo>` | 작업의 현재 상태(또는 최근 작업 목록). |
 | `wait <job-id> --cwd <repo>` | 끝날 때까지 기다린 뒤 결과 출력. |
-| `watch <job-id> --cwd <repo>` | 변경마다 JSON 상태 한 줄, 마지막에 `done` 또는 `timeout`. |
+| `watch <job-id> --cwd <repo>` | JSON 상태와 `done`/`timeout`. 실패·취소·stale은 0이 아닌 종료 코드. `done`만으로 성공은 아닙니다. |
 | `result <job-id> --cwd <repo>` | 저장된 결과 출력 (id를 빼면 가장 최근 작업). |
+| `ack <job-id> --cwd <repo>` | 부모가 결과를 읽고 판단·반영한 뒤 수신 확인. 로그는 보존. |
+| `status --pending --json --cwd <repo>` | 실행 중이거나 아직 수신 확인하지 않은 전체 작업. 오래된 미회수 결과도 포함. |
 | `cancel <job-id> --cwd <repo>` | 실행 중인 작업과 Codex 프로세스를 멈춤. |
 
 쓸 만한 플래그: `--prompt-file`(셸 따옴표에 안 깨지는 여러 줄 프롬프트), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
+
+부모의 책임은 **실행 → 감시 → 보고서 읽기 → 판단·검증 → ack**입니다. 타임아웃(124)은 작업 취소가 아니라 대기 종료이므로 같은 job id로 다시 `wait`합니다. 알림이나 `done`만 받고 끝내지 말고, `wait` 결과 또는 `result`의 상태·본문·stderr를 확인하세요. 재개·컨텍스트 압축 후와 최종 완료 보고 전에는 `status --pending`으로 자기 작업을 대조합니다. 다른 세션의 작업은 건드리지 않습니다. `ack`는 성공 판정이 아닌 처리 확인이며, 실패도 원인과 다음 조치를 기록한 뒤 확인할 수 있습니다.
+
+부모 세션이 닫히면 helper가 직접 깨울 수는 없습니다. 부모 도구의 알림 지원에 의존하므로 기록과 미회수 조회를 복구 경로로 씁니다. 자세한 절차는 [SKILL.md의 Parent Completion Contract](SKILL.md#parent-completion-contract)를 따릅니다.
 
 `--model`은 지정하지 않으면 Codex 쪽 기본 모델(현재 `gpt-5.6-sol`)을 그대로 씁니다. 짧은 별칭 `astra`(= `gpt-6-astra`)·`sol`(= `gpt-5.6-sol`)·`luna`(= `gpt-5.6-luna`)·`spark`(= `gpt-5.3-codex-spark`)·`deepseek`(= `deepseek/deepseek-v4-flash-0731`)를 쓸 수 있고, `--effort`는 `task`와 `review` 모두에서 `none`부터 `xhigh`·`max`·`ultra`까지 받습니다. `--profile <이름>`은 Codex 프로필을 레이어링해 제공자 자체를 바꿉니다(현재는 `openrouter` 하나).
 
@@ -119,8 +125,8 @@ LazyCodex를 쓰기로 하면 Claude가 트리거 하나를 골라 위임을 라
 | 범위가 확정된 멀티파일 구현, 판단 여지 적음 | `ulw` (write task 한 방) |
 | 크거나 모호한 작업 — 상세 플랜부터 필요 | `$ulw-plan` (read-only, 플랜만) |
 | Claude가 검토하고 사용자가 승인한 플랜 실행 | `$start-work` (플랜 경로 지정 write task) |
-| 장기 멀티골 작업, 증거 게이트 필요 | `$ulw-loop` (백그라운드 write task) |
-| 범위를 한정할 수 없는 전방위 리서치 (코드베이스+웹+공식문서) | `$ulw-research` (백그라운드 read-only task) |
+| 장기 멀티골 작업, 증거 게이트 필요 | `$ulw-loop` (`task --write --wait`를 부모의 백그라운드 도구에서 실행) |
+| 범위를 한정할 수 없는 전방위 리서치 (코드베이스+웹+공식문서) | `$ulw-research` (`task --read-only --wait`를 부모의 백그라운드 도구에서 실행) |
 
 Claude는 설계 브리프(트리거 줄, 목표, 검증 가능한 성공 기준, Must-NOT 범위, 완료 마커)까지만 씁니다. 상세 태스크 분해는 저장소를 직접 탐색하는 OmO 플래너의 몫입니다. 큰 작업은 2단계로 갑니다: `$ulw-plan`이 `.omo/plans/<slug>.md`를 만들고, Claude가 시니어 관점으로 검토하고, 사용자가 승인하면 `$start-work`로 실행. 프롬프트 파일 첫 줄에 트리거를 단독으로 넣고 평소대로 `task`를 돌리면 됩니다. 완료 추적은 계속 `wait` / `watch` / `status` / `result`로 하세요.
 

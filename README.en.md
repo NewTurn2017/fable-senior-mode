@@ -75,29 +75,35 @@ node scripts/codex-companion.mjs setup
 # Bounded investigation — block until the report comes back
 node scripts/codex-companion.mjs task --wait --read-only --prompt-file <prompt-file> --cwd <repo>
 
-# Open-ended work — start in the background, then track it
-node scripts/codex-companion.mjs task --background --read-only --prompt-file <prompt-file> --cwd <repo>
+# Long work — run this --wait command with the parent Bash tool's run_in_background: true
+node scripts/codex-companion.mjs task --wait --read-only --prompt-file <prompt-file> --cwd <repo>
 
 # Explicitly delegated implementation (only when you mean it)
-node scripts/codex-companion.mjs task --write --prompt-file <prompt-file> --cwd <repo>
+node scripts/codex-companion.mjs task --wait --write --prompt-file <prompt-file> --cwd <repo>
 
 # Code review against a base branch
-node scripts/codex-companion.mjs review --background --base main --cwd <repo>
+node scripts/codex-companion.mjs review --wait --base main --cwd <repo>
 ```
 
 ### Tracking background jobs
 
-Every background job returns a job id. Use it instead of launching a second run:
+**The helper's `--background` flag does not notify the parent.** For long work, run `--wait` in the parent's native background tool so it tracks the actual wait. Record the helper job ID, parent task ID/output path, cwd/state directory, and purpose. If you use helper `--background --json`, immediately attach its returned `waitCommand` to the parent's background tool. Never launch the Codex task again just to recover output.
 
 | Command | What it does |
 | --- | --- |
 | `status <job-id> --cwd <repo>` | Current state of a job (or a list of recent jobs). |
 | `wait <job-id> --cwd <repo>` | Block until the job finishes, then print the result. |
-| `watch <job-id> --cwd <repo>` | Emit one JSON status line per change, ending in `done` or `timeout`. |
+| `watch <job-id> --cwd <repo>` | JSON status and `done`/`timeout`; failure/cancellation/stale return nonzero. `done` alone does not mean success. |
 | `result <job-id> --cwd <repo>` | Print the stored result (omit the id for the latest job). |
+| `ack <job-id> --cwd <repo>` | Acknowledge after the parent reads and integrates the report; retain logs. |
+| `status --pending --json --cwd <repo>` | All running or unacknowledged terminal jobs, including old unread results. |
 | `cancel <job-id> --cwd <repo>` | Stop a running job and its Codex process. |
 
 Useful flags: `--prompt-file` (multi-line prompts that survive shell quoting), `--timeout-ms`, `--poll-interval-ms`, `--model`, `--effort`, `--json`, `--state-dir`.
+
+The parent owns **launch → monitor → read report → judge/verify → ack**. Timeout (124) ends the wait, not the job: reattach `wait` to the same ID. Read status, report, and stderr from `wait` or `result` after any notification or `done` event. On resume/compaction and before claiming completion, reconcile this task's IDs with `status --pending`; leave other sessions' jobs alone. `ack` records handling, not success; failures can be acknowledged after their cause and next action are recorded.
+
+The helper cannot wake a closed parent session. Native notifications depend on the host; persistent records and pending discovery provide recovery. Follow [SKILL.md's Parent Completion Contract](SKILL.md#parent-completion-contract) for the full procedure.
 
 Omit `--model` and Codex uses its own configured default (currently `gpt-5.6-sol`). Short aliases are `astra` (= `gpt-6-astra`), `sol` (= `gpt-5.6-sol`), `luna` (= `gpt-5.6-luna`), `spark` (= `gpt-5.3-codex-spark`), and `deepseek` (= `deepseek/deepseek-v4-flash-0731`); `--effort` accepts `none` through `xhigh`, plus `max` and `ultra`, on both `task` and `review`. `--profile <name>` layers a Codex profile to switch provider entirely (today only `openrouter`).
 
@@ -119,8 +125,8 @@ Once LazyCodex is in play, Claude routes the delegation through exactly one trig
 | Bounded multi-file implementation, little judgment left | `ulw` (single write task) |
 | Large or ambiguous work that needs a detailed plan first | `$ulw-plan` (read-only, plan only) |
 | Executing a plan Claude reviewed and you approved | `$start-work` (write task on the plan path) |
-| Long-running multi-goal work with evidence gates | `$ulw-loop` (background write task) |
-| Exhaustive multi-source research (codebase + web + docs) | `$ulw-research` (background read-only task) |
+| Long-running multi-goal work with evidence gates | `$ulw-loop` (`task --write --wait` in the parent's background tool) |
+| Exhaustive multi-source research (codebase + web + docs) | `$ulw-research` (`task --read-only --wait` in the parent's background tool) |
 
 Claude writes only a design brief (trigger line, goal, verifiable success criteria, Must-NOT scope, completion marker); the detailed task breakdown belongs to the OmO planner, which explores the repository itself. For big work the flow is two-stage: `$ulw-plan` produces `.omo/plans/<slug>.md`, Claude reviews it as a senior, you approve, then `$start-work` executes. Put the trigger alone on the first line of the prompt file and run the normal `task` command. Keep tracking completion through `wait` / `watch` / `status` / `result`.
 

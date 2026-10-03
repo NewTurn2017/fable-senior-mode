@@ -3,6 +3,8 @@
 날짜: 2026-07-02
 상태: 승인됨 (사용자 확인)
 
+> 2026-09-21 실행·완료 전달 규약 갱신: 아래는 당시 설계 기록입니다. helper `--background`와 완료 마커에 관한 실행 지침은 [현재 Parent Completion Contract](../../../SKILL.md#parent-completion-contract)로 대체되었습니다. 긴 작업은 부모의 백그라운드 도구에서 helper `--wait`를 실행하고, 보고서 처리 후 `ack`합니다. 완료 마커는 보고서 검사에만 쓰며 부모 알림이나 프로세스 완료 판정 수단이 아닙니다.
+
 ## 배경
 
 senior-mode SKILL.md의 "LazyCodex Compatibility" 섹션은 트리거(`ulw`, `$ulw-plan`, `$ulw-loop`, `$start-work`)를 프롬프트 파일에 넣으라는 수준에서 끝난다. 어떤 트리거를 언제 쓸지, 브리프에 뭘 담아야 할지 정의가 없어 fable-5의 시니어 판단이 트리거 선택에 반영되지 않는다.

@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
@@ -29,11 +30,16 @@ function printUsage() {
     "  node scripts/codex-companion.mjs setup [--json] [--cwd <dir>]",
     "  node scripts/codex-companion.mjs task [--background|--wait] [--write|--read-only] [--resume-last|--resume|--fresh] [--model <model|astra|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [prompt]",
     "  node scripts/codex-companion.mjs review [--background|--wait] [--base <branch>|--commit <sha>|--uncommitted] [--model <model|astra|sol|luna|spark|deepseek>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [--profile <codex-profile>] [--prompt-file <file>] [--cwd <dir>] [--timeout-ms <ms>] [--dry-run] [focus]",
-    "  node scripts/codex-companion.mjs status [job-id] [--wait] [--all] [--json] [--cwd <dir>]",
+    "  node scripts/codex-companion.mjs status [job-id] [--wait] [--all|--pending] [--json] [--cwd <dir>]",
     "  node scripts/codex-companion.mjs wait <job-id> [--json] [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
     "  node scripts/codex-companion.mjs watch <job-id> [--cwd <dir>] [--timeout-ms <ms>] [--poll-interval-ms <ms>]",
     "  node scripts/codex-companion.mjs result [job-id] [--json] [--cwd <dir>]",
-    "  node scripts/codex-companion.mjs cancel <job-id> [--json] [--cwd <dir>]"
+    "  node scripts/codex-companion.mjs ack <job-id> [--json] [--cwd <dir>]",
+    "  node scripts/codex-companion.mjs cancel <job-id> [--json] [--cwd <dir>]",
+    "",
+    "Job commands accept --state-dir <dir>. task/review accept --json.",
+    "--background only detaches: it does NOT notify the parent. Run the returned waitCommand in the parent's background tool.",
+    "After reading and integrating a terminal report, use ack. status --pending recovers unacknowledged jobs."
   ].join("\n"));
 }
 
@@ -203,6 +209,9 @@ function ensureDir(dir) {
 }
 
 function jobPath(stateDir, jobId) {
+  if (!/^[A-Za-z0-9_-]+$/.test(jobId)) {
+    throw new Error("Invalid job id.");
+  }
   return path.join(stateDir, `${jobId}.json`);
 }
 
@@ -216,7 +225,9 @@ function readJson(filePath) {
 
 function writeJson(filePath, value) {
   ensureDir(path.dirname(filePath));
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+  const temporary = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`);
+  fs.renameSync(temporary, filePath);
 }
 
 function printJson(value) {
@@ -264,6 +275,22 @@ function sleep(ms) {
 
 function isTerminalStatus(status) {
   return TERMINAL_STATUSES.has(status);
+}
+
+function jobExitCode(job) {
+  if (job.status === "completed") return job.exitStatus ?? 0;
+  return job.exitStatus || 1;
+}
+
+function acknowledgedAt(stateDir, jobId) {
+  return readJson(path.join(stateDir, `${jobId}.ack`))?.acknowledgedAt ?? null;
+}
+
+function recoveryCommands(stateDir, job) {
+  const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
+  const command = (verb) => [process.execPath, SCRIPT_PATH, verb, job.id, "--cwd", job.cwd, "--state-dir", stateDir]
+    .map(quote).join(" ");
+  return { waitCommand: command("wait"), resultCommand: command("result") };
 }
 
 function pidAlive(pid) {
@@ -579,12 +606,20 @@ function enqueueBackground(request, stateDir, options = {}) {
   job.updatedAt = nowIso();
   writeJob(stateDir, job);
   if (!options.silent) {
-    process.stdout.write(`${request.kind === "review" ? "Codex review" : "Codex task"} started as ${job.id}. Use wait/status/result/cancel with this helper.\n`);
+    const recovery = recoveryCommands(stateDir, job);
+    if (request.json) {
+      printJson({ job, stateDir, notification: "none", ...recovery });
+    } else {
+      process.stdout.write(`${request.kind === "review" ? "Codex review" : "Codex task"} started as ${job.id}. No automatic parent notification.\nMonitor now: ${recovery.waitCommand}\n`);
+    }
   }
   return job;
 }
 
 function buildCommonRequest(kind, cwd, options, prompt) {
+  if (options.background && options.wait) {
+    throw new Error("Choose either --background or --wait, not both.");
+  }
   return {
     kind,
     cwd,
@@ -700,6 +735,7 @@ async function handleWorker(argv) {
   });
   stdout.end();
   stderr.end();
+  await Promise.all([finished(stdout), finished(stderr)]);
 
   const latest = readJob(stateDir, job.id) ?? job;
   latest.status = latest.status === "cancelled" ? "cancelled" : (result.status === 0 ? "completed" : "failed");
@@ -730,6 +766,7 @@ function buildResultPayload(stateDir, job) {
   const reconciled = reconcileJob(stateDir, job);
   return {
     job: reconciled,
+    acknowledgedAt: acknowledgedAt(stateDir, job.id),
     stdout: readTextIfExists(reconciled.outputFile),
     stderr: readTextIfExists(reconciled.errorFile)
   };
@@ -789,10 +826,11 @@ async function waitThenPrintResult(stateDir, jobId, options = {}) {
   const waitResult = await waitForJob(stateDir, jobId, options);
   if (waitResult.timedOut) {
     if (options.json) {
-      printJson({ ...waitResult, stateDir });
+      printJson({ ...waitResult, stateDir, ...recoveryCommands(stateDir, waitResult.job) });
     } else {
       process.stdout.write(`Timed out waiting for ${jobId} after ${waitResult.timeoutMs}ms. Use status/result with the same job id; do not rerun the task.\n`);
       process.stdout.write(`${renderJobLine(waitResult.job)}\n`);
+      process.stdout.write(`Reattach: ${recoveryCommands(stateDir, waitResult.job).waitCommand}\n`);
     }
     process.exitCode = 124;
     return;
@@ -800,13 +838,13 @@ async function waitThenPrintResult(stateDir, jobId, options = {}) {
 
   const payload = buildResultPayload(stateDir, waitResult.job);
   printStoredResult(payload, Boolean(options.json));
-  process.exitCode = payload.job.exitStatus ?? (payload.job.status === "completed" ? 0 : 1);
+  process.exitCode = jobExitCode(payload.job);
 }
 
 async function handleStatus(argv) {
   const { options, positionals } = parseArgs(argv, {
     valueOptions: ["cwd", "state-dir", "timeout-ms", "poll-interval-ms"],
-    booleanOptions: ["json", "all", "wait"],
+    booleanOptions: ["json", "all", "pending", "wait"],
     aliases: { C: "cwd" }
   });
   const { stateDir } = resolveJobContext(options);
@@ -820,7 +858,9 @@ async function handleStatus(argv) {
   }
 
   const jobs = positionals[0] ? [readJob(stateDir, positionals[0])].filter(Boolean) : listJobs(stateDir);
-  const visible = (options.all ? jobs : jobs.slice(0, 10)).map((job) => reconcileJob(stateDir, job));
+  const visible = (options.all || options.pending ? jobs : jobs.slice(0, 10))
+    .map((job) => ({ ...reconcileJob(stateDir, job), acknowledgedAt: acknowledgedAt(stateDir, job.id) }))
+    .filter((job) => !options.pending || !isTerminalStatus(job.status) || !job.acknowledgedAt);
   if (options.json) {
     printJson({ stateDir, jobs: visible });
     return;
@@ -852,7 +892,7 @@ async function handleWatch(argv) {
     booleanOptions: [],
     aliases: { C: "cwd" }
   });
-  const { cwd, stateDir } = resolveJobContext(options);
+  const { stateDir } = resolveJobContext(options);
   const jobId = positionals[0];
   if (!jobId) {
     throw new Error("watch requires a job id.");
@@ -863,8 +903,26 @@ async function handleWatch(argv) {
       process.stdout.write(`${JSON.stringify({ event: "status", jobId: job.id, status: job.status, updatedAt: job.updatedAt, summary: job.summary })}\n`);
     }
   });
-  process.stdout.write(`${JSON.stringify({ event: waitResult.timedOut ? "timeout" : "done", jobId, status: waitResult.job.status, resultCommand: `node ${SCRIPT_PATH} result ${jobId} --cwd ${cwd}` })}\n`);
-  process.exitCode = waitResult.timedOut ? 124 : 0;
+  process.stdout.write(`${JSON.stringify({ event: waitResult.timedOut ? "timeout" : "done", jobId, status: waitResult.job.status, success: !waitResult.timedOut && waitResult.job.status === "completed", exitStatus: waitResult.job.exitStatus, ...recoveryCommands(stateDir, waitResult.job) })}\n`);
+  process.exitCode = waitResult.timedOut ? 124 : jobExitCode(waitResult.job);
+}
+
+function handleAck(argv) {
+  const { options, positionals } = parseArgs(argv, {
+    valueOptions: ["cwd", "state-dir"],
+    booleanOptions: ["json"],
+    aliases: { C: "cwd" }
+  });
+  const { stateDir } = resolveJobContext(options);
+  const jobId = positionals[0];
+  if (!jobId) throw new Error("ack requires a job id.");
+  const job = readJobReconciled(stateDir, jobId);
+  if (!job) throw new Error(`No job found for ${jobId}.`);
+  if (!isTerminalStatus(job.status)) throw new Error(`Job ${jobId} is still ${job.status}; read the terminal report before ack.`);
+  const receipt = { jobId, acknowledgedAt: acknowledgedAt(stateDir, jobId) ?? nowIso() };
+  writeJson(path.join(stateDir, `${jobId}.ack`), receipt);
+  if (options.json) printJson(receipt);
+  else process.stdout.write(`${jobId} acknowledged. Stored result retained.\n`);
 }
 
 function handleResult(argv) {
@@ -937,6 +995,7 @@ const COMMANDS = {
   wait: handleWait,
   watch: handleWatch,
   result: handleResult,
+  ack: handleAck,
   cancel: handleCancel,
   worker: handleWorker
 };
